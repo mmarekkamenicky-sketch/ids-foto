@@ -9,18 +9,21 @@
     body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:14px;max-width:520px}
     .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:10px}
     .iconBtn{
-      border:1px solid #ddd;border-radius:18px;padding:18px 10px;
-      background:#fff;font-weight:800;font-size:15px;text-align:center;
+      border:2px solid #111;border-radius:18px;padding:18px 10px;
+      background:#fff;font-weight:900;font-size:15px;text-align:center;
       display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;
       user-select:none
     }
-    .icon{font-size:34px;line-height:1}
+    .icon{font-size:34px;line-height:1;color:#111}
     .iconBtn:active{transform:scale(.99)}
-    .iconBtn:disabled{opacity:.45}
-    .badge{display:inline-block;padding:6px 12px;border-radius:999px;background:#f2f2f2;font-weight:800}
+    .iconBtn:disabled{opacity:.35}
+    .badge{display:inline-block;padding:6px 12px;border-radius:999px;background:#f2f2f2;font-weight:900}
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
-    .btn{padding:12px 14px;border-radius:14px;border:1px solid #ccc;background:#fff;font-weight:800}
-    .btn.primary{background:#111;color:#fff;border-color:#111}
+    .btn{
+      padding:14px 14px;border-radius:16px;border:2px solid #111;background:#fff;font-weight:900;
+      width:100%;
+    }
+    .btn.primary{background:#111;color:#fff}
     video,img{width:100%;border-radius:16px;border:1px solid #eee;background:#000;margin-top:12px}
     dialog{border:none;border-radius:16px;padding:14px;max-width:420px;width:92vw}
     dialog::backdrop{background:rgba(0,0,0,.45)}
@@ -30,21 +33,24 @@
 </head>
 <body>
 
-  <div>Kód: <span id="codeOut" class="badge">—</span></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+    <div>Kód: <span id="codeOut" class="badge">—</span></div>
+    <div id="status" class="badge">Ready</div>
+  </div>
 
   <div class="grid">
     <button id="btnScan" class="iconBtn">
-      <div class="icon">📷</div>
+      <div class="icon">▣</div>
       <div>Skenovať</div>
     </button>
 
     <button id="btnManual" class="iconBtn">
-      <div class="icon">⌨️</div>
+      <div class="icon">⌨</div>
       <div>Zadať</div>
     </button>
 
     <button id="btnPhoto" class="iconBtn" disabled>
-      <div class="icon">📸</div>
+      <div class="icon">◉</div>
       <div>Foto</div>
     </button>
   </div>
@@ -53,16 +59,19 @@
     <video id="video" playsinline></video>
     <canvas id="canvas" style="display:none"></canvas>
     <div class="row">
-      <button id="btnStop" class="btn" style="flex:1">Stop</button>
+      <button id="btnStop" class="btn">Stop</button>
     </div>
   </div>
 
   <img id="preview" style="display:none" alt="Náhľad" />
 
-  <div id="afterPhoto" class="row" style="display:none">
-    <button id="btnOk" class="btn primary" style="flex:1">OK</button>
-    <button id="btnRetake" class="btn" style="flex:1">Znova</button>
-    <button id="btnShare" class="btn" style="flex:1">Zdieľať</button>
+  <div id="afterPhoto" style="display:none">
+    <div class="row">
+      <button id="btnOk" class="btn primary">OK (stiahnuť)</button>
+    </div>
+    <div class="row">
+      <button id="btnRetake" class="btn">Znova</button>
+    </div>
   </div>
 
   <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none" />
@@ -71,19 +80,22 @@
     <div style="font-weight:900;margin-bottom:10px">Zadať kód</div>
     <input id="manualText" placeholder="napr. 8544 alebo ABC-8544" />
     <div class="row">
-      <button id="dlgOk" class="btn primary" style="flex:1">OK</button>
-      <button id="dlgCancel" class="btn" style="flex:1">Zrušiť</button>
+      <button id="dlgOk" class="btn primary">OK</button>
     </div>
-    <div class="tiny">Tip: môže byť aj text, nielen čísla.</div>
+    <div class="row">
+      <button id="dlgCancel" class="btn">Zrušiť</button>
+    </div>
+    <div class="tiny">Tip: môže byť aj text.</div>
   </dialog>
 
 <script>
-  // PWA offline
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
   }
 
   const codeOut = document.getElementById('codeOut');
+  const statusEl = document.getElementById('status');
+
   const btnScan = document.getElementById('btnScan');
   const btnManual = document.getElementById('btnManual');
   const btnPhoto = document.getElementById('btnPhoto');
@@ -99,7 +111,6 @@
   const afterPhoto = document.getElementById('afterPhoto');
   const btnOk = document.getElementById('btnOk');
   const btnRetake = document.getElementById('btnRetake');
-  const btnShare = document.getElementById('btnShare');
 
   const dlg = document.getElementById('dlg');
   const manualText = document.getElementById('manualText');
@@ -114,11 +125,14 @@
   function safeName(s){
     return String(s || "").trim().replace(/[\\/:*?"<>|]+/g, "_");
   }
+  function setStatus(t){ statusEl.textContent = t; }
+
   function setCode(v){
     currentCode = String(v || "").trim();
     codeOut.textContent = currentCode || "—";
     btnPhoto.disabled = !currentCode;
   }
+
   function stopStream(){
     if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
   }
@@ -128,15 +142,30 @@
     stopStream();
   }
 
+  function resetForNext(){
+    lastBlob = null;
+    preview.style.display = "none";
+    preview.src = "";
+    afterPhoto.style.display = "none";
+    setCode("");
+    setStatus("Ready");
+    // rovno späť na sken
+    startScan();
+  }
+
   async function startScan(){
+    // ak prehliadač nepodporuje detektor, otvoríme ručný input
     if (!('BarcodeDetector' in window)) {
-      // fallback: rovno otvor ručný vstup
+      setStatus("Manual");
       dlg.showModal();
       setTimeout(()=>manualText.focus(), 50);
       return;
     }
+
+    setStatus("Scan");
     scanning = true;
     scanWrap.style.display = "block";
+
     try{
       stream = await navigator.mediaDevices.getUserMedia({
         video:{ facingMode:{ ideal:"environment" } }, audio:false
@@ -148,6 +177,7 @@
 
       const loop = async () => {
         if(!scanning) return;
+
         const w = video.videoWidth || 640;
         const h = video.videoHeight || 480;
         canvas.width = w; canvas.height = h;
@@ -160,21 +190,34 @@
             if(raw){
               setCode(raw);
               stopScan();
+              // hneď po skene šup na fotoaparát
+              openCamera();
+              return;
             }
           }
         }catch(e){}
+
         requestAnimationFrame(loop);
       };
       requestAnimationFrame(loop);
 
     }catch(e){
       stopScan();
+      setStatus("Manual");
       dlg.showModal();
       setTimeout(()=>manualText.focus(), 50);
     }
   }
 
-  function downloadBlob(blob, filename){
+  function openCamera(){
+    if(!currentCode) return;
+    setStatus("Photo");
+    photoInput.value = "";
+    photoInput.click();
+  }
+
+  function downloadNow(blob, filename){
+    // najspoľahlivejší "user gesture" download
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -185,10 +228,25 @@
     setTimeout(()=>URL.revokeObjectURL(url), 4000);
   }
 
-  btnScan.addEventListener('click', startScan);
-  btnStop.addEventListener('click', stopScan);
+  btnScan.addEventListener('click', () => {
+    stopScan();
+    resetUIOnly();
+    startScan();
+  });
+
+  function resetUIOnly(){
+    lastBlob = null;
+    preview.style.display = "none";
+    preview.src = "";
+    afterPhoto.style.display = "none";
+    setStatus("Ready");
+  }
+
+  btnStop.addEventListener('click', () => { stopScan(); setStatus("Ready"); });
 
   btnManual.addEventListener('click', ()=>{
+    stopScan();
+    setStatus("Manual");
     dlg.showModal();
     manualText.value = currentCode;
     setTimeout(()=>manualText.focus(), 50);
@@ -196,25 +254,30 @@
 
   dlgOk.addEventListener('click', ()=>{
     const v = manualText.value.trim();
-    if(v) setCode(v);
-    dlg.close();
+    if(v){
+      setCode(v);
+      dlg.close();
+      // po manuálnom zadaní tiež rovno na foto
+      openCamera();
+    }
   });
-  dlgCancel.addEventListener('click', ()=> dlg.close());
+  dlgCancel.addEventListener('click', ()=>{ dlg.close(); setStatus("Ready"); });
 
-  btnPhoto.addEventListener('click', ()=>{
-    if(!currentCode) return;
-    photoInput.value = "";
-    photoInput.click();
-  });
+  btnPhoto.addEventListener('click', openCamera);
 
   photoInput.addEventListener('change', ()=>{
     const f = photoInput.files && photoInput.files[0];
-    if(!f) return;
+    if(!f){
+      // user zavrel kameru bez fotky → späť na sken
+      setStatus("Ready");
+      startScan();
+      return;
+    }
     lastBlob = f;
     preview.src = URL.createObjectURL(f);
     preview.style.display = "block";
-    afterPhoto.style.display = "flex";
-    btnShare.disabled = !(navigator.canShare && navigator.canShare({ files:[f] }));
+    afterPhoto.style.display = "block";
+    setStatus("Review");
   });
 
   btnRetake.addEventListener('click', ()=>{
@@ -222,28 +285,21 @@
     preview.style.display = "none";
     preview.src = "";
     afterPhoto.style.display = "none";
-    photoInput.value = "";
-    photoInput.click();
+    openCamera();
   });
 
-  // OK = rovno stiahnuť
   btnOk.addEventListener('click', ()=>{
     if(!currentCode || !lastBlob) return;
     const filename = safeName(currentCode) + ".jpg";
-    downloadBlob(lastBlob, filename);
+    setStatus("Save");
+    downloadNow(lastBlob, filename);
+    // po krátkom odstupe reset + nové skenovanie
+    setTimeout(resetForNext, 250);
   });
 
-  // Zdieľať = vyber OneDrive ručne (najjednoduchšie)
-  btnShare.addEventListener('click', async ()=>{
-    if(!currentCode || !lastBlob) return;
-    try{
-      const filename = safeName(currentCode) + ".jpg";
-      const file = new File([lastBlob], filename, { type:lastBlob.type || "image/jpeg" });
-      await navigator.share({ title:"Foto plochy", files:[file] });
-    }catch(e){}
-  });
-
+  // init
   setCode("");
+  setStatus("Ready");
 </script>
 </body>
 </html>
