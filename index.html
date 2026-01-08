@@ -25,7 +25,6 @@
       --greenBg:#eefaf2;
 
       --red:#b00020;
-      --black:#111;
     }
 
     body{
@@ -36,10 +35,10 @@
       max-width:720px;
     }
 
-    /* ✅ minimalistické zaoblenie */
+    /* minimalistické zaoblenie */
     *{ border-radius:8px; }
 
-    /* ✅ bez orámovania */
+    /* bez orámovania */
     .card{
       border:none;
       padding:12px;
@@ -55,7 +54,7 @@
     input, textarea{
       width:100%;
       padding:14px 14px;
-      border:none;                 /* ✅ bez orámovania */
+      border:none;
       font-size:16px;
       background:#f3f3f3;
       font-family: inherit;
@@ -103,57 +102,46 @@
     .sp{height:10px}
     .sp2{height:14px}
 
-    /* ✅ TOP OK banner */
+    /* TOP OK – fullscreen-ish */
     #topOkBanner{ display:none; }
-    .okBanner{
+    .okFull{
       background:var(--greenBg);
       color:var(--green);
-      padding:14px 14px;
+      padding:18px;
       display:flex;
+      flex-direction:column;
+      gap:14px;
       align-items:center;
-      justify-content:space-between;
-      gap:12px;
-    }
-    .okLeft{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      font-weight:900;
-      font-size:16px;
+      justify-content:center;
+      text-align:center;
+      min-height:55vh;
     }
     .okIcon{
-      width:30px;height:30px;
+      width:64px;height:64px;
       display:flex;
       align-items:center;
       justify-content:center;
       background:rgba(10,122,47,.12);
       color:var(--green);
       border-radius:999px;
-      font-size:18px;
+      font-size:34px;
       font-weight:900;
     }
-
-    /* Posters box ✅ čierne pozadie + biele písmo */
-    #postersCard{ display:none; }
-    .postersDark{
-      background:var(--black);
-      color:#fff;
-      padding:12px;
-      border-radius:8px;
-    }
-    .pillWrap{ display:flex; flex-wrap:wrap; gap:8px; }
-    .pill{
-      border:none;                 /* ✅ bez orámovania */
-      padding:8px 10px;
+    .okTitle{
       font-weight:900;
-      background:#1d1d1d;
-      color:#fff;
-      user-select:none;
+      font-size:26px;
+      line-height:1.1;
+    }
+    .okSub{
+      color:#2f7a4a;
+      font-weight:800;
+      opacity:.9;
+      font-size:14px;
     }
 
     /* Task rows */
     .task{
-      border:none;                 /* ✅ bez orámovania */
+      border:none;
       padding:14px 14px;
       display:flex;
       align-items:stretch;
@@ -179,7 +167,7 @@
       font-weight:900;
       color:#111;
       background:#fff;
-      border:none;                 /* ✅ bez orámovania */
+      border:none;
       padding:10px 12px;
       display:inline-block;
       border-radius:8px;
@@ -194,9 +182,6 @@
     .task.off{ background:var(--grayCard); color:#777; cursor:default; }
     .task.done{ background:var(--greenBg); color:var(--green); }
 
-    .task:active{ transform:scale(.995); }
-
-    /* Suffix buttons */
     .suffixWrap{
       display:flex;
       gap:10px;
@@ -217,13 +202,12 @@
     .suffixBtn.active{
       box-shadow:0 0 0 2px rgba(0,0,0,.12) inset;
     }
-    .suffixBtn:active{ transform:scale(.99); }
 
     /* After photo */
     #afterPhoto{ display:none; }
     .bigSave{ width:100%; }
 
-    /* Express area */
+    /* Express */
     #expressBlock{ display:none; }
     .subcard{
       border:none;
@@ -257,7 +241,6 @@
 
     /* Hidden panels */
     #panelScan, #panelReport { display:none; margin-top:12px; }
-
     video{width:100%; background:#000; border:none; }
 
     dialog{
@@ -273,115 +256,143 @@
     th,td{border-bottom:1px solid #eee;padding:8px 6px;font-size:12.5px;vertical-align:top}
     th{text-align:left;font-size:11px;color:#666}
 
-    @media (max-width: 380px){
-      .task{ padding:12px; }
-      .suffixBtn{ min-width:58px; padding:11px 14px; }
+    /* Mini info (plagáty + adresa) úplne dole */
+    #miniInfoWrap{ display:none; }
+    .miniInfo{
+      background:#f6f6f6;
+      padding:10px;
+      border-radius:8px;
+    }
+    .miniTitle{
+      font-size:11px;
+      font-weight:900;
+      color:#666;
+      margin-bottom:6px;
+      text-transform:uppercase;
+      letter-spacing:.02em;
+    }
+    .miniLine{
+      font-size:12.5px;
+      color:#111;
+      line-height:1.35;
+      margin:2px 0;
+      word-break:break-word;
+    }
+    .miniPills{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      margin-top:6px;
+    }
+    .miniPill{
+      font-size:12px;
+      font-weight:900;
+      background:#eaeaea;
+      padding:6px 8px;
     }
   </style>
 </head>
 <body>
 
-  <!-- ✅ TOP OK BANNER (len keď je všetko hotové) -->
+  <!-- ✅ ONLY THIS when all done -->
   <div id="topOkBanner" class="card">
-    <div class="okBanner">
-      <div class="okLeft">
-        <div class="okIcon">✓</div>
-        <div>Všetko hotové</div>
+    <div class="okFull">
+      <div class="okIcon">✓</div>
+      <div class="okTitle">Všetko hotové</div>
+      <div class="okSub">Môžeš pokračovať na ďalšiu plochu</div>
+      <button id="btnOkNext" class="btn green" style="width:100%;max-width:360px">Nové</button>
+    </div>
+  </div>
+
+  <!-- MAIN UI WRAPPER (schová sa keď all done) -->
+  <div id="mainUi">
+    <div class="card">
+      <div class="row">
+        <input id="apInput" placeholder="Kód plochy" />
+        <button id="btnLoad" class="btn gray" style="min-width:110px">Načítať</button>
       </div>
-      <button id="btnOkNext" class="btn green" style="padding:12px 14px;font-size:16px">Nové</button>
+
+      <div class="sp"></div>
+
+      <div class="row">
+        <input id="manualCode" placeholder="Kód (sken / ručne)" />
+        <button id="btnCamera" class="btn gray" style="min-width:110px">Foto</button>
+      </div>
     </div>
-  </div>
-
-  <div class="sp2"></div>
-
-  <!-- TOP -->
-  <div class="card">
-    <div class="row">
-      <input id="apInput" placeholder="Kód plochy" />
-      <button id="btnLoad" class="btn gray" style="min-width:110px">Načítať</button>
-    </div>
-
-    <div class="sp"></div>
-
-    <div class="row">
-      <input id="manualCode" placeholder="Kód (sken / ručne)" />
-      <button id="btnCamera" class="btn gray" style="min-width:110px">Foto</button>
-    </div>
-  </div>
-
-  <div class="sp2"></div>
-
-  <!-- POSTERS -->
-  <div id="postersCard" class="card">
-    <div class="postersDark">
-      <div class="pillWrap" id="pillWrap"></div>
-    </div>
-  </div>
-
-  <div class="sp2"></div>
-
-  <!-- TASKS -->
-  <div id="tasksCard" class="card" style="display:none">
-    <div id="taskList" style="display:flex;flex-direction:column;gap:10px"></div>
 
     <div class="sp2"></div>
 
-    <!-- EXPRESS -->
-    <div id="expressBlock" class="subcard">
-      <button id="btnExpressToggle" class="btn gray" style="width:100%">Express som odovzdal</button>
-      <div id="expressArea" style="display:none;margin-top:10px">
-        <textarea id="expressText" placeholder=""></textarea>
+    <div id="tasksCard" class="card" style="display:none">
+      <div id="taskList" style="display:flex;flex-direction:column;gap:10px"></div>
+
+      <div class="sp2"></div>
+
+      <div id="expressBlock" class="subcard">
+        <button id="btnExpressToggle" class="btn gray" style="width:100%">Express som odovzdal</button>
+        <div id="expressArea" style="display:none;margin-top:10px">
+          <textarea id="expressText" placeholder=""></textarea>
+          <div class="sp"></div>
+          <button id="btnSaveExpress" class="btn" style="width:100%">Uložiť</button>
+        </div>
+      </div>
+
+      <div class="sp2"></div>
+
+      <button id="btnFinish" class="btn red" style="width:100%">Ukončiť</button>
+    </div>
+
+    <div id="afterPhoto" class="card">
+      <button id="btnSavePhoto" class="btn yellow bigSave">Uložiť</button>
+      <div class="sp"></div>
+      <div class="row">
+        <button id="btnRetake" class="btn gray" style="flex:1">Znova</button>
+        <button id="btnBack" class="btn gray" style="flex:1">Späť</button>
+      </div>
+    </div>
+
+    <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none" />
+
+    <div class="bottomBar">
+      <div id="btnMiniScan" class="miniIcon"><span>▣</span><div>Sken</div></div>
+      <div id="btnMiniReport" class="miniIcon"><span>≡</span><div>Report</div></div>
+    </div>
+
+    <div id="panelScan" class="card">
+      <video id="video" playsinline></video>
+      <canvas id="canvas" style="display:none"></canvas>
+      <div class="sp"></div>
+      <button id="btnStopScan" class="btn gray" style="width:100%">Stop</button>
+    </div>
+
+    <div id="panelReport" class="card">
+      <div class="row">
+        <input id="repName" placeholder="Kto" />
+        <input id="repDate" type="date" />
+      </div>
+      <div class="sp"></div>
+      <div class="row">
+        <button id="btnToggleReport" class="btn gray" style="flex:1">Zobraziť</button>
+        <button id="btnExportCsv" class="btn gray" style="flex:1">CSV</button>
+      </div>
+      <div id="reportWrap" style="display:none"></div>
+    </div>
+
+    <!-- ✅ Mini info úplne dole (plagáty + adresa) -->
+    <div id="miniInfoWrap" class="card">
+      <div class="miniInfo">
+        <div class="miniTitle">Plocha</div>
+        <div id="miniAddress" class="miniLine">—</div>
+        <div id="miniPerson" class="miniLine">—</div>
+        <div id="miniPharmacy" class="miniLine">—</div>
+
         <div class="sp"></div>
-        <button id="btnSaveExpress" class="btn" style="width:100%">Uložiť</button>
+        <div class="miniTitle">Plagáty</div>
+        <div id="miniPosters" class="miniPills"></div>
       </div>
     </div>
 
-    <div class="sp2"></div>
-
-    <button id="btnFinish" class="btn red" style="width:100%">Ukončiť</button>
   </div>
 
-  <!-- AFTER PHOTO -->
-  <div id="afterPhoto" class="card">
-    <button id="btnSavePhoto" class="btn yellow bigSave">Uložiť</button>
-    <div class="sp"></div>
-    <div class="row">
-      <button id="btnRetake" class="btn gray" style="flex:1">Znova</button>
-      <button id="btnBack" class="btn gray" style="flex:1">Späť</button>
-    </div>
-  </div>
-
-  <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none" />
-
-  <!-- Bottom icons -->
-  <div class="bottomBar">
-    <div id="btnMiniScan" class="miniIcon"><span>▣</span><div>Sken</div></div>
-    <div id="btnMiniReport" class="miniIcon"><span>≡</span><div>Report</div></div>
-  </div>
-
-  <!-- Scan panel -->
-  <div id="panelScan" class="card">
-    <video id="video" playsinline></video>
-    <canvas id="canvas" style="display:none"></canvas>
-    <div class="sp"></div>
-    <button id="btnStopScan" class="btn gray" style="width:100%">Stop</button>
-  </div>
-
-  <!-- Report panel -->
-  <div id="panelReport" class="card">
-    <div class="row">
-      <input id="repName" placeholder="Kto" />
-      <input id="repDate" type="date" />
-    </div>
-    <div class="sp"></div>
-    <div class="row">
-      <button id="btnToggleReport" class="btn gray" style="flex:1">Zobraziť</button>
-      <button id="btnExportCsv" class="btn gray" style="flex:1">CSV</button>
-    </div>
-    <div id="reportWrap" style="display:none"></div>
-  </div>
-
-  <!-- Confirm finish -->
   <dialog id="dlgFinish">
     <div style="font-weight:900;font-size:18px">Ukončiť?</div>
     <div id="finishText" class="muted" style="margin-top:10px"></div>
@@ -403,15 +414,22 @@
   const COL_STATIC = "AM";
   const COL_EXPRESS = "AL";
 
+  // info fields
+  const COL_CITY = "F";
+  const COL_STREET = "G";
+  const COL_HOUSE = "H";
+  const COL_NAME = "J";
+  const COL_SURNAME = "K";
+  const COL_PHARMACY = "L";
+
   // ===== Elements =====
+  const mainUi = document.getElementById('mainUi');
+
   const apInput = document.getElementById('apInput');
   const btnLoad = document.getElementById('btnLoad');
 
   const manualCode = document.getElementById('manualCode');
   const btnCamera = document.getElementById('btnCamera');
-
-  const postersCard = document.getElementById('postersCard');
-  const pillWrap = document.getElementById('pillWrap');
 
   const topOkBanner = document.getElementById('topOkBanner');
   const btnOkNext = document.getElementById('btnOkNext');
@@ -448,6 +466,12 @@
   const btnToggleReport = document.getElementById('btnToggleReport');
   const btnExportCsv = document.getElementById('btnExportCsv');
   const reportWrap = document.getElementById('reportWrap');
+
+  const miniInfoWrap = document.getElementById('miniInfoWrap');
+  const miniAddress = document.getElementById('miniAddress');
+  const miniPerson = document.getElementById('miniPerson');
+  const miniPharmacy = document.getElementById('miniPharmacy');
+  const miniPosters = document.getElementById('miniPosters');
 
   const dlgFinish = document.getElementById('dlgFinish');
   const finishText = document.getElementById('finishText');
@@ -491,6 +515,18 @@
     btnCamera.className = ok ? "btn red" : "btn gray";
   }
 
+  function showAllDoneOnly(){
+    // schovaj všetko, nech nepúta pozornosť
+    mainUi.style.display = "none";
+    topOkBanner.style.display = "block";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function showMainUi(){
+    topOkBanner.style.display = "none";
+    mainUi.style.display = "block";
+  }
+
   // ===== DB index =====
   let dbRows=null, idx=null;
   const IDX_AP = colToIndex(COL_MAIN_AP);
@@ -500,6 +536,13 @@
   const IDX_B1 = colToIndex(COL_B1);
   const IDX_STATIC = colToIndex(COL_STATIC);
   const IDX_EXPRESS = colToIndex(COL_EXPRESS);
+
+  const IDX_CITY = colToIndex(COL_CITY);
+  const IDX_STREET = colToIndex(COL_STREET);
+  const IDX_HOUSE = colToIndex(COL_HOUSE);
+  const IDX_NAME = colToIndex(COL_NAME);
+  const IDX_SURNAME = colToIndex(COL_SURNAME);
+  const IDX_PHARMACY = colToIndex(COL_PHARMACY);
 
   async function loadDbXlsx(){
     try{
@@ -556,20 +599,43 @@
     return Array.from(set);
   }
 
-  function renderPosters(row){
-    const posters = getPostersFromRow(row);
-    pillWrap.innerHTML = "";
-    if(!posters.length){
-      postersCard.style.display = "none";
+  function renderMiniInfo(row){
+    if(!row){
+      miniInfoWrap.style.display = "none";
       return;
     }
-    postersCard.style.display = "block";
-    posters.forEach(p=>{
+    const city = norm(row[IDX_CITY]);
+    const street = norm(row[IDX_STREET]);
+    const house = norm(row[IDX_HOUSE]);
+    const name = norm(row[IDX_NAME]);
+    const surname = norm(row[IDX_SURNAME]);
+    const pharmacy = norm(row[IDX_PHARMACY]);
+
+    const addrParts = [city, street, house].filter(Boolean);
+    miniAddress.textContent = addrParts.length ? addrParts.join(", ") : "—";
+
+    const personParts = [name, surname].filter(Boolean);
+    miniPerson.textContent = personParts.length ? personParts.join(" ") : "—";
+
+    miniPharmacy.textContent = pharmacy ? pharmacy : "—";
+
+    const posters = getPostersFromRow(row);
+    miniPosters.innerHTML = "";
+    if(posters.length){
+      posters.forEach(p=>{
+        const d = document.createElement("div");
+        d.className = "miniPill";
+        d.textContent = p;
+        miniPosters.appendChild(d);
+      });
+    }else{
       const d = document.createElement("div");
-      d.className = "pill";
-      d.textContent = p;
-      pillWrap.appendChild(d);
-    });
+      d.className = "miniLine";
+      d.textContent = "—";
+      miniPosters.appendChild(d);
+    }
+
+    miniInfoWrap.style.display = "block";
   }
 
   // ===== Session state =====
@@ -586,8 +652,8 @@
   }
 
   // ===== Log/report =====
-  const LOG_KEY="ids_foto_log_v12";
-  const REP_KEY="ids_rep_name_v12";
+  const LOG_KEY="ids_foto_log_v13";
+  const REP_KEY="ids_rep_name_v13";
 
   function loadLog(){
     try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); }
@@ -788,9 +854,9 @@
     return div;
   }
 
-  function updateFinishButton(){
+  function updateAllDoneState(){
     if(!currentTasks){
-      topOkBanner.style.display = "none";
+      showMainUi();
       return;
     }
 
@@ -803,14 +869,9 @@
     const allDone = doneStand && doneB1 && doneStatic && doneExpress;
 
     if(allDone){
-      // ✅ banner hore
-      topOkBanner.style.display = "block";
-      btnFinish.style.display = "none";
+      showAllDoneOnly();
     }else{
-      topOkBanner.style.display = "none";
-      btnFinish.style.display = "block";
-      btnFinish.textContent = "Ukončiť";
-      btnFinish.className = "btn red";
+      showMainUi();
     }
   }
 
@@ -859,13 +920,8 @@
     if(t.needExpress){
       expressBlock.style.display = "block";
       btnExpressToggle.textContent = expressSaved ? "Express uložený" : "Express som odovzdal";
-      if(expressSaved){
-        btnExpressToggle.style.background = "var(--greenBg)";
-        btnExpressToggle.style.color = "var(--green)";
-      }else{
-        btnExpressToggle.style.background = "#e9e9e9";
-        btnExpressToggle.style.color = "#111";
-      }
+      btnExpressToggle.style.background = expressSaved ? "var(--greenBg)" : "#e9e9e9";
+      btnExpressToggle.style.color = expressSaved ? "var(--green)" : "#111";
     }else{
       expressBlock.style.display = "none";
       expressArea.style.display = "none";
@@ -873,7 +929,7 @@
       expressSaved = false;
     }
 
-    updateFinishButton();
+    updateAllDoneState();
   }
 
   // ===== Photo flow =====
@@ -996,11 +1052,9 @@
   btnOkNext.addEventListener("click", resetToNew);
 
   function resetToNew(){
-    topOkBanner.style.display = "none";
-    tasksCard.style.display = "none";
-    postersCard.style.display = "none";
-    pillWrap.innerHTML = "";
+    showMainUi();
 
+    tasksCard.style.display = "none";
     afterPhoto.style.display = "none";
     taskList.innerHTML = "";
     currentTasks = null;
@@ -1016,6 +1070,8 @@
 
     resetSessionFlags();
 
+    miniInfoWrap.style.display = "none";
+
     apInput.value = "";
     manualCode.value = "";
     refreshCameraButton();
@@ -1030,8 +1086,8 @@
     const t = computeTasks(ap);
     if(!t){
       tasksCard.style.display = "none";
-      postersCard.style.display = "none";
-      topOkBanner.style.display = "none";
+      miniInfoWrap.style.display = "none";
+      showMainUi();
       return;
     }
 
@@ -1046,7 +1102,8 @@
 
     resetSessionFlags();
 
-    renderPosters(t.row);
+    // ✅ mini info dole: adresa + plagáty
+    renderMiniInfo(t.row);
 
     tasksCard.style.display = "block";
     renderTasks();
@@ -1077,7 +1134,7 @@
     panelReport.style.display = (panelReport.style.display==="block") ? "none" : "block";
   });
 
-  // ===== Scan (hidden) =====
+  // ===== Scan =====
   let stream=null, scanning=false;
 
   function stopStream(){
@@ -1137,7 +1194,7 @@
     panelScan.style.display="none";
   });
 
-  // ===== Report (hidden) =====
+  // ===== Report =====
   btnToggleReport.addEventListener("click", ()=>{
     const vis = reportWrap.style.display==="block";
     if(vis){
