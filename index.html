@@ -6,32 +6,65 @@
   <title>IDS Foto</title>
   <link rel="manifest" href="manifest.json">
   <style>
-    body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:14px;max-width:520px}
+    :root{
+      --red:#b00020;
+      --black:#111;
+      --gray:#666;
+      --line:#ddd;
+    }
+    body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:14px;max-width:560px}
+
+    /* HRANATÉ – všetko */
+    *{border-radius:0 !important}
+
     .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
-    .badge{display:inline-block;padding:6px 12px;border-radius:999px;background:#f2f2f2;font-weight:900}
+    .badge{display:inline-block;padding:6px 10px;background:#f2f2f2;font-weight:900;border:1px solid #e5e5e5}
+
     .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:10px}
     .iconBtn{
-      border:2px solid #111;border-radius:18px;padding:18px 10px;
-      background:#fff;font-weight:900;font-size:15px;text-align:center;
+      border:2px solid var(--black);
+      padding:18px 10px;
+      background:#fff;
+      font-weight:900;
+      font-size:15px;
+      text-align:center;
       display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;
       user-select:none
     }
-    .icon{font-size:34px;line-height:1;color:#111}
+    .icon{font-size:34px;line-height:1;color:var(--black)}
     .iconBtn:active{transform:scale(.99)}
     .iconBtn:disabled{opacity:.35}
-    .btn{padding:14px 14px;border-radius:16px;border:2px solid #111;background:#fff;font-weight:900;width:100%}
-    .btn.primary{background:#111;color:#fff}
-    .btn.danger{border-color:#b00020;color:#b00020}
-    video,img{width:100%;border-radius:16px;border:1px solid #eee;background:#000;margin-top:12px}
-    dialog{border:none;border-radius:16px;padding:14px;max-width:420px;width:92vw}
+
+    /* Foto tlačidlo: keď je aktívne, červený rám */
+    .iconBtn.camera.enabled{border-color:var(--red)}
+    .iconBtn.camera.enabled .icon{color:var(--black)}
+
+    .btn{
+      padding:14px 14px;border:2px solid var(--black);background:#fff;font-weight:900;width:100%
+    }
+    /* ULOŽIŤ = červené pozadie, biele písmo */
+    .btn.save{background:var(--red);border-color:var(--red);color:#fff}
+
+    .btn.danger{border-color:var(--red);color:var(--red)}
+    video,img{width:100%;border:1px solid #eee;background:#000;margin-top:12px}
+
+    dialog{border:none;padding:14px;max-width:420px;width:92vw}
     dialog::backdrop{background:rgba(0,0,0,.45)}
-    input{width:100%;padding:12px 12px;border-radius:14px;border:1px solid #ccc;font-size:16px}
-    .tiny{font-size:12px;color:#666;margin-top:8px}
-    .card{border:1px solid #ddd;border-radius:16px;padding:12px;margin-top:12px}
-    .pill{display:inline-block;border:1px solid #111;border-radius:999px;padding:6px 10px;margin:4px 6px 0 0;font-weight:900}
+    input, textarea{
+      width:100%;
+      padding:12px 12px;
+      border:1px solid #ccc;
+      font-size:16px;
+      background:#fff;
+    }
+    textarea{min-height:70px;resize:vertical}
+    .tiny{font-size:12px;color:var(--gray);margin-top:8px}
+    .card{border:1px solid var(--line);padding:12px;margin-top:12px}
+    .pill{display:inline-block;border:1px solid var(--black);padding:6px 10px;margin:4px 6px 0 0;font-weight:900}
+
     table{width:100%;border-collapse:collapse;margin-top:10px}
-    th,td{border-bottom:1px solid #eee;padding:8px 6px;font-size:13px;vertical-align:top}
-    th{text-align:left;font-size:12px;color:#666}
+    th,td{border-bottom:1px solid #eee;padding:8px 6px;font-size:12.5px;vertical-align:top}
+    th{text-align:left;font-size:11px;color:#666}
     .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   </style>
 </head>
@@ -52,7 +85,7 @@
       <div class="icon">⌨</div><div>Zadať</div>
     </button>
 
-    <button id="btnPhoto" class="iconBtn" disabled>
+    <button id="btnPhoto" class="iconBtn camera" disabled>
       <div class="icon">◉</div><div>Foto</div>
     </button>
   </div>
@@ -66,7 +99,13 @@
   <img id="preview" style="display:none" alt="Náhľad" />
 
   <div id="afterPhoto" style="display:none;margin-top:10px">
-    <button id="btnOk" class="btn primary">OK (stiahnuť + zapísať do reportu)</button>
+    <div class="card" style="margin-top:0">
+      <div style="font-weight:900;margin-bottom:8px">Poznámka (voliteľné)</div>
+      <textarea id="noteInput" placeholder="napr. zatvorená / odmietnutá / prerábka / rám poškodený..."></textarea>
+    </div>
+
+    <div style="height:10px"></div>
+    <button id="btnSave" class="btn save">Uložiť</button>
     <div style="height:10px"></div>
     <button id="btnRetake" class="btn">Znova</button>
     <div style="height:10px"></div>
@@ -77,9 +116,9 @@
 
   <dialog id="dlg">
     <div style="font-weight:900;margin-bottom:10px">Zadať kód (pre fotenie)</div>
-    <input id="manualText" placeholder="napr. 8544 alebo ABC-8544" />
+    <input id="manualText" placeholder="napr. 8544 alebo 558774C" />
     <div style="margin-top:10px">
-      <button id="dlgOk" class="btn primary">OK</button>
+      <button id="dlgOk" class="btn">OK</button>
       <div style="height:10px"></div>
       <button id="dlgCancel" class="btn">Zrušiť</button>
     </div>
@@ -105,7 +144,7 @@
         <input id="repDate" type="date" />
       </div>
       <div>
-        <div class="tiny">Reprezentant (voliteľné)</div>
+        <div class="tiny">Kto fotil (reprezentant)</div>
         <input id="repName" placeholder="napr. Jano" />
       </div>
     </div>
@@ -133,6 +172,25 @@
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
   }
 
+  // =========================
+  // KONFIG – PODĽA TVOJICH STĹPCOV
+  // =========================
+  const COL_MAIN_AP = "AP";      // hlavný kód plochy
+  const CODE_COLUMNS = ["B","C","AO"];  // kódy z nálepiek (stojan, B1, statický)
+
+  // report text
+  const COL_CITY   = "F";
+  const COL_STREET = "G";
+  const COL_HOUSE  = "H";
+  const COL_FIRST  = "J";  // meno
+  const COL_LAST   = "K";  // priezvisko
+  const COL_PHARM  = "L";  // názov lekárne
+
+  // plagáty
+  const COL_POSTER_FROM = "AG";
+  const COL_POSTER_TO   = "AM";
+  // =========================
+
   const codeOut = document.getElementById('codeOut');
   const dbOut = document.getElementById('dbOut');
 
@@ -149,9 +207,10 @@
   const photoInput = document.getElementById('photoInput');
   const preview = document.getElementById('preview');
   const afterPhoto = document.getElementById('afterPhoto');
-  const btnOk = document.getElementById('btnOk');
+  const btnSave = document.getElementById('btnSave');
   const btnRetake = document.getElementById('btnRetake');
   const btnNextScan = document.getElementById('btnNextScan');
+  const noteInput = document.getElementById('noteInput');
 
   const dlg = document.getElementById('dlg');
   const manualText = document.getElementById('manualText');
@@ -177,19 +236,152 @@
 
   // ===== DB =====
   let dbRows = null;
+  let idx = null;
+
   function colToIndex(letter){
     let s = String(letter).toUpperCase().replace(/[^A-Z]/g,"");
     let n = 0;
     for (let i=0;i<s.length;i++) n = n*26 + (s.charCodeAt(i)-64);
     return n-1;
   }
-  const IDX_AP = colToIndex("AP");
-  const IDX_AG = colToIndex("AG");
-  const IDX_AM = colToIndex("AM");
+
+  // indexes
+  const IDX_MAIN_AP = colToIndex(COL_MAIN_AP);
+  const IDX_CODE_COLS = CODE_COLUMNS.map(c => colToIndex(c));
+
+  const IDX_CITY = colToIndex(COL_CITY);
+  const IDX_STREET = colToIndex(COL_STREET);
+  const IDX_HOUSE = colToIndex(COL_HOUSE);
+  const IDX_FIRST = colToIndex(COL_FIRST);
+  const IDX_LAST = colToIndex(COL_LAST);
+  const IDX_PHARM = colToIndex(COL_PHARM);
+
+  const IDX_P_FROM = colToIndex(COL_POSTER_FROM);
+  const IDX_P_TO   = colToIndex(COL_POSTER_TO);
+
+  function normCode(v){
+    return String(v ?? "").trim().toUpperCase();
+  }
+
+  function stripSuffixABC(code){
+    // 558774C -> 558774 ; 558774 -> 558774 ; AB12C -> AB12 (len ak posledný znak je písmeno)
+    const s = normCode(code);
+    if(!s) return "";
+    if(/[A-Z]$/.test(s)) return s.slice(0, -1);
+    return s;
+  }
+
+  function tokenizeCodes(cell){
+    // rozseká "123, 456 / 789A" -> ["123","456","789A"]
+    const raw = normCode(cell);
+    if(!raw) return [];
+    return raw.split(/[\s,;\/]+/).map(x=>x.trim()).filter(Boolean);
+  }
+
+  function buildIndex(){
+    idx = {
+      byAP: new Map(),   // AP -> row
+      byAny: new Map()   // kód z B/C/AO (aj bez suffixu) -> row
+    };
+    if(!dbRows) return;
+
+    for(let r=0; r<dbRows.length; r++){
+      const row = dbRows[r];
+      if(!row) continue;
+
+      const ap = normCode(row[IDX_MAIN_AP]);
+      if(ap) idx.byAP.set(ap, row);
+
+      // kódy z nálepiek v B/C/AO
+      for(const ci of IDX_CODE_COLS){
+        const codes = tokenizeCodes(row[ci]);
+        for(const c of codes){
+          const cc = normCode(c);
+          if(!cc) continue;
+
+          // ulož raw
+          idx.byAny.set(cc, row);
+
+          // ulož aj bez suffixu (kvôli 558774C)
+          const base = stripSuffixABC(cc);
+          if(base) idx.byAny.set(base, row);
+        }
+      }
+    }
+  }
+
+  async function loadDbXlsx(){
+    try{
+      const res = await fetch("./db.xlsx", { cache: "no-cache" });
+      if(!res.ok) throw new Error("db.xlsx not found");
+      const buf = await res.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      dbRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+      buildIndex();
+      dbOut.textContent = "DB: OK";
+    }catch(e){
+      dbRows = null;
+      idx = null;
+      dbOut.textContent = "DB: —";
+    }
+  }
+
+  function getRowForPhotoCode(photoCode){
+    if(!idx) return null;
+    const c = normCode(photoCode);
+    if(!c) return null;
+
+    // 1) ak niekto fotí rovno AP
+    if(idx.byAP.has(c)) return { ap: c, row: idx.byAP.get(c) };
+
+    // 2) kód zo stĺpcov B/C/AO (aj s suffixom alebo bez)
+    if(idx.byAny.has(c)){
+      const row = idx.byAny.get(c);
+      const ap = normCode(row[IDX_MAIN_AP]);
+      return { ap, row };
+    }
+
+    // 3) skúsiť ešte base (pre istotu)
+    const base = stripSuffixABC(c);
+    if(base && idx.byAny.has(base)){
+      const row = idx.byAny.get(base);
+      const ap = normCode(row[IDX_MAIN_AP]);
+      return { ap, row };
+    }
+
+    return null;
+  }
+
+  function getPostersFromRow(row){
+    if(!row) return [];
+    const set = new Set();
+    for(let i=IDX_P_FROM;i<=IDX_P_TO;i++){
+      const v = String(row[i] ?? "").trim();
+      if(!v) continue;
+      v.split(/[\s,;\/]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>set.add(x));
+    }
+    return Array.from(set);
+  }
+
+  function makeJoinedText(row){
+    if(!row) return "";
+    const city = String(row[IDX_CITY] ?? "").trim();
+    const street = String(row[IDX_STREET] ?? "").trim();
+    const house = String(row[IDX_HOUSE] ?? "").trim();
+    const first = String(row[IDX_FIRST] ?? "").trim();
+    const last  = String(row[IDX_LAST] ?? "").trim();
+    const pharm = String(row[IDX_PHARM] ?? "").trim();
+
+    const addr = [city, [street, house].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+    const name = [first, last].filter(Boolean).join(" ");
+    // požadované: Mesto, Ulica popisné, Meno Priezvisko, + lekáreň
+    return [addr, name, pharm].filter(Boolean).join(" | ");
+  }
 
   // ===== Report storage =====
-  const LOG_KEY = "ids_foto_log_v1";
-  const REP_KEY = "ids_rep_name_v1";
+  const LOG_KEY = "ids_foto_log_v3";
+  const REP_KEY = "ids_rep_name_v3";
 
   function loadLog(){
     try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); }
@@ -206,45 +398,10 @@
   function setCode(v){
     currentCode = String(v || "").trim();
     codeOut.textContent = currentCode || "—";
-    btnPhoto.disabled = !currentCode;
-  }
 
-  async function loadDbXlsx(){
-    try{
-      const res = await fetch("./db.xlsx", { cache: "no-cache" });
-      if(!res.ok) throw new Error("db.xlsx not found");
-      const buf = await res.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array" });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      dbRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
-      dbOut.textContent = "DB: OK";
-    }catch(e){
-      dbRows = null;
-      dbOut.textContent = "DB: —";
-    }
-  }
-
-  function getPostersForAP(apCode){
-    if(!dbRows) return [];
-    const wanted = String(apCode || "").trim();
-    if(!wanted) return [];
-
-    let found = null;
-    for(let r=0;r<dbRows.length;r++){
-      const row = dbRows[r];
-      if(!row) continue;
-      const ap = String(row[IDX_AP] ?? "").trim();
-      if(ap === wanted){ found = row; break; }
-    }
-    if(!found) return [];
-
-    const set = new Set();
-    for(let i=IDX_AG;i<=IDX_AM;i++){
-      const v = String(found[i] ?? "").trim();
-      if(!v) continue;
-      v.split(/[\s,;\/]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>set.add(x));
-    }
-    return Array.from(set);
+    const has = !!currentCode;
+    btnPhoto.disabled = !has;
+    btnPhoto.classList.toggle("enabled", has);
   }
 
   // ===== Scan =====
@@ -322,26 +479,35 @@
     setTimeout(()=>URL.revokeObjectURL(url), 4000);
   }
 
-  function resetAfterSave(){
-    lastBlob = null;
-    preview.style.display = "none";
-    preview.src = "";
-    afterPhoto.style.display = "none";
-    setCode("");
+  function isoDate(d){
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const day = String(d.getDate()).padStart(2,"0");
+    return `${y}-${m}-${day}`;
   }
 
-  // ===== Lookup posters (UI) =====
+  function fmtTime(ts){
+    return String(ts||"").split("T")[1]?.slice(0,8) || "";
+  }
+
+  // ===== Lookup posters (samostatná časť) =====
   function showPostersFor(apCode){
     postersEl.innerHTML = "";
-    const posters = getPostersForAP(apCode);
-    if(!dbRows){
+    if(!idx){
       postersEl.innerHTML = "<span class='pill'>DB nie je načítaná</span>";
       return;
     }
-    if(!String(apCode||"").trim()){
+    const wanted = normCode(apCode);
+    if(!wanted){
       postersEl.innerHTML = "<span class='pill'>Zadaj kód</span>";
       return;
     }
+    const row = idx.byAP.get(wanted);
+    if(!row){
+      postersEl.innerHTML = "<span class='pill'>nenájdené</span>";
+      return;
+    }
+    const posters = getPostersFromRow(row);
     if(posters.length === 0){
       postersEl.innerHTML = "<span class='pill'>—</span>";
       return;
@@ -349,26 +515,7 @@
     postersEl.innerHTML = posters.map(x => `<span class="pill">${x}</span>`).join("");
   }
 
-  // ===== Report rendering/export =====
-  function isoDate(d){
-    // YYYY-MM-DD local
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2,"0");
-    const day = String(d.getDate()).padStart(2,"0");
-    return `${y}-${m}-${day}`;
-  }
-
-  function fmtTime(iso){
-    // "2026-01-08T10:12:33" -> "10:12:33"
-    return String(iso||"").split("T")[1]?.slice(0,8) || "";
-  }
-
-  function escapeCsv(s){
-    const v = String(s ?? "");
-    if (/[",\n;]/.test(v)) return `"${v.replaceAll('"','""')}"`;
-    return v;
-  }
-
+  // ===== Report =====
   function renderReport(){
     const day = repDate.value || isoDate(new Date());
     const log = loadLog().filter(x => x.day === day);
@@ -378,20 +525,29 @@
       return;
     }
 
-    const rows = log
-      .slice()
-      .sort((a,b)=> (a.ts||"").localeCompare(b.ts||""));
+    const rows = log.slice().sort((a,b)=> (a.ts||"").localeCompare(b.ts||""));
 
     let html = `<table>
       <thead><tr>
-        <th>Čas</th><th>Kód</th><th>Plagáty</th><th>Súbor</th>
+        <th>Čas</th>
+        <th>Kto</th>
+        <th>AP</th>
+        <th>Fotil</th>
+        <th>Text</th>
+        <th>Plagáty</th>
+        <th>Poznámka</th>
+        <th>Súbor</th>
       </tr></thead><tbody>`;
 
     for(const r of rows){
       html += `<tr>
         <td>${fmtTime(r.ts)}</td>
-        <td><b>${r.code || ""}</b></td>
+        <td>${r.who || ""}</td>
+        <td><b>${r.ap || ""}</b></td>
+        <td>${r.photoCode || ""}</td>
+        <td>${r.joined || ""}</td>
         <td>${(r.posters && r.posters.length) ? r.posters.join(", ") : "—"}</td>
+        <td>${r.note || ""}</td>
         <td>${r.file || ""}</td>
       </tr>`;
     }
@@ -400,34 +556,40 @@
     reportWrap.innerHTML = html;
   }
 
+  function escapeCsv(s){
+    const v = String(s ?? "");
+    if (/[",\n;]/.test(v)) return `"${v.replaceAll('"','""')}"`;
+    return v;
+  }
+
   function exportCsv(){
     const day = repDate.value || isoDate(new Date());
-    const rep = (repName.value || "").trim();
     const log = loadLog().filter(x => x.day === day).sort((a,b)=> (a.ts||"").localeCompare(b.ts||""));
     if(log.length === 0){
       alert("Pre tento deň nie sú žiadne záznamy.");
       return;
     }
 
-    const header = ["day","time","representant","code","posters","file"];
+    const header = ["day","time","who","ap","photoCode","joinedText","posters","note","file"];
     const lines = [header.join(";")];
 
     for(const r of log){
-      const time = fmtTime(r.ts);
-      const posters = (r.posters && r.posters.length) ? r.posters.join(", ") : "";
       lines.push([
         escapeCsv(r.day),
-        escapeCsv(time),
-        escapeCsv(rep),
-        escapeCsv(r.code),
-        escapeCsv(posters),
+        escapeCsv(fmtTime(r.ts)),
+        escapeCsv(r.who),
+        escapeCsv(r.ap),
+        escapeCsv(r.photoCode),
+        escapeCsv(r.joined),
+        escapeCsv((r.posters && r.posters.length) ? r.posters.join(", ") : ""),
+        escapeCsv(r.note),
         escapeCsv(r.file)
       ].join(";"));
     }
 
     const csv = lines.join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const filename = `report_${day}${rep ? "_" + safeName(rep) : ""}.csv`;
+    const filename = `report_${day}_${safeName(repName.value || "repre")}.csv`;
     downloadNow(blob, filename);
   }
 
@@ -471,6 +633,7 @@
     preview.src = URL.createObjectURL(f);
     preview.style.display = "block";
     afterPhoto.style.display = "block";
+    noteInput.value = "";
   });
 
   btnRetake.addEventListener('click', ()=>{
@@ -478,36 +641,64 @@
     preview.style.display = "none";
     preview.src = "";
     afterPhoto.style.display = "none";
+    noteInput.value = "";
     openCamera();
   });
 
-  btnOk.addEventListener('click', ()=>{
+  btnSave.addEventListener('click', ()=>{
     if(!currentCode || !lastBlob) return;
 
+    // súbor
     const filename = safeName(currentCode) + ".jpg";
     downloadNow(lastBlob, filename);
 
-    // zapíš do reportu
+    // resolve AP + row podľa B/C/AO alebo AP
+    const who = (repName.value || "").trim();
+    const note = (noteInput.value || "").trim();
+
+    const resolved = getRowForPhotoCode(currentCode);
+    const ap = resolved ? resolved.ap : "";
+    const row = resolved ? resolved.row : null;
+
+    const posters = row ? getPostersFromRow(row) : [];
+    const joined  = row ? makeJoinedText(row) : "";
+
+    // log
     const now = new Date();
     const entry = {
-      ts: now.toISOString().slice(0,19),       // YYYY-MM-DDTHH:MM:SS
+      ts: now.toISOString().slice(0,19),
       day: isoDate(now),
-      code: String(currentCode),
-      posters: getPostersForAP(currentCode),
+      who: who,
+      ap: ap,
+      photoCode: String(currentCode),
+      joined: joined,
+      posters: posters,
+      note: note,
       file: filename
     };
     const log = loadLog();
     log.push(entry);
     saveLog(log);
 
-    // refresh report ak je otvorený ten istý deň
+    // refresh report ak zobrazuješ dnešok
     if((repDate.value || isoDate(new Date())) === entry.day) renderReport();
 
-    resetAfterSave();
+    // reset UI
+    lastBlob = null;
+    preview.style.display = "none";
+    preview.src = "";
+    afterPhoto.style.display = "none";
+    noteInput.value = "";
+    setCode("");
   });
 
   btnNextScan.addEventListener('click', ()=>{
-    resetAfterSave();
+    lastBlob = null;
+    preview.style.display = "none";
+    preview.src = "";
+    afterPhoto.style.display = "none";
+    noteInput.value = "";
+    setCode("");
     startScan();
   });
 
@@ -524,7 +715,6 @@
   setCode("");
   loadDbXlsx();
 
-  // report defaults
   repDate.value = (new Date()).toISOString().slice(0,10);
   repName.value = localStorage.getItem(REP_KEY) || "";
   repName.addEventListener('change', ()=> localStorage.setItem(REP_KEY, repName.value.trim()));
