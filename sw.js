@@ -1,5 +1,12 @@
-const CACHE = "ids-foto-v2";
-const CORE = ["./", "./index.html", "./manifest.json", "./sw.js"];
+const CACHE = "ids-foto-v3"; // keď zmeníš DB, zmeň na v4, v5...
+
+const CORE = [
+  "./",
+  "./index.html",
+  "./manifest.json",
+  "./sw.js",
+  "./db.xlsx" // DB je súčasť appky
+];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)));
@@ -13,7 +20,6 @@ self.addEventListener("activate", (e) => {
   self.clients.claim();
 });
 
-// runtime cache: čo raz načítaš (aj CDN knižnicu), pôjde potom aj offline
 self.addEventListener("fetch", (e) => {
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
@@ -22,11 +28,9 @@ self.addEventListener("fetch", (e) => {
 
     try {
       const fresh = await fetch(e.request);
-      // uložíme do cache aj externé veci (napr. xlsx knižnicu)
       cache.put(e.request, fresh.clone());
       return fresh;
-    } catch (err) {
-      // fallback na appku
+    } catch {
       return cache.match("./index.html");
     }
   })());
