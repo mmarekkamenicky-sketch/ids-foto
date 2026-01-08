@@ -6,7 +6,6 @@
   <title>IDS Foto</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- Onest (fallback na system font ak offline) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;700;800;900&display=swap" rel="stylesheet">
@@ -22,8 +21,9 @@
       --soft:#f6f6f6;
       --blue:#0b57d0;
       --blueSoft:#e7f0ff;
+      --yellow:#ffd400;
+      --yellowText:#111;
     }
-
     body{
       font-family: Onest, "Aptos Narrow", Aptos, system-ui, Segoe UI, Roboto, Arial, sans-serif;
       margin:14px;max-width:820px
@@ -69,10 +69,17 @@
       padding:14px 14px;border:2px solid var(--black);background:#fff;font-weight:900;width:100%;
       font-family: inherit;
     }
-    .btn.save{background:var(--red);border-color:var(--red);color:#fff}
     .btn.danger{border-color:var(--red);color:var(--red)}
+    .btn.saveYellow{
+      background:var(--yellow);
+      border-color:var(--yellow);
+      color:var(--yellowText);
+      font-weight:900;
+      font-size:18px;
+      padding:16px 14px;
+    }
 
-    video,img{width:100%;border:1px solid #eee;background:#000;margin-top:12px}
+    video{width:100%;border:1px solid #eee;background:#000;margin-top:12px}
 
     dialog{border:none;padding:14px;max-width:420px;width:92vw}
     dialog::backdrop{background:rgba(0,0,0,.45)}
@@ -90,10 +97,7 @@
     }
     .task small{display:block;font-weight:700;color:#333;margin-top:6px}
     .task .code{display:inline-block;margin-top:6px;padding:6px 10px;background:var(--soft);border:1px solid #ddd}
-    .task.done{
-      border-color:var(--ok);
-      color:var(--ok);
-    }
+    .task.done{border-color:var(--ok);color:var(--ok)}
     .task.done .code{border-color:#cfe8d7;background:#f2fbf5}
     .task.muted{opacity:.55;cursor:default}
     .taskHeader{display:flex;justify-content:space-between;gap:10px;align-items:center}
@@ -101,7 +105,7 @@
     .warn{color:var(--bad);font-weight:900}
 
     /* Express */
-    .exWrap{margin-top:10px;border-top:1px dashed #ddd;padding-top:10px}
+    .exWrap{margin-top:12px;border-top:1px dashed #ddd;padding-top:12px}
     .exTitle{font-weight:900;margin-bottom:8px}
     .exGrid{display:grid;grid-template-columns:repeat(9,1fr);gap:8px}
     .exBox{
@@ -113,17 +117,10 @@
       user-select:none;
       background:#fff;
     }
-    .exBox.on{
-      border-color:var(--blue);
-      background:var(--blueSoft);
-      color:var(--blue);
-    }
-    .exBox.pre{
-      border-color:var(--blue);
-      color:var(--blue);
-      background:#fff;
-    }
+    .exBox.on{border-color:var(--blue);background:var(--blueSoft);color:var(--blue)}
+    .exBox.pre{border-color:var(--blue);color:var(--blue);background:#fff}
     .exHint{font-size:12px;color:#444;margin-top:8px}
+
     .okToast{
       margin-top:10px;
       border:2px solid var(--ok);
@@ -177,28 +174,13 @@
     <div style="margin-top:10px"><button id="btnStop" class="btn">Stop</button></div>
   </div>
 
-  <img id="preview" style="display:none" alt="Náhľad" />
-
-  <div id="afterPhoto" style="display:none;margin-top:10px">
-    <div class="card" style="margin-top:0">
-      <div style="font-weight:900;margin-bottom:8px">Poznámka (voliteľné)</div>
-      <textarea id="noteInput" placeholder="napr. zatvorená / odmietnutá / prerábka / rám poškodený..."></textarea>
-
-      <div id="expressWrap" class="exWrap" style="display:none">
-        <div class="exTitle">Express som odovzdal</div>
-        <div id="exGrid" class="exGrid"></div>
-        <div class="exHint">Modré = odporúčané podľa DB (AL). Klikni čo si reálne odovzdal.</div>
-      </div>
-
-      <div id="allDoneToast" class="okToast" style="display:none">Pri tejto ploche som urobil všetko ✅</div>
-    </div>
-
-    <div style="height:10px"></div>
-    <button id="btnSave" class="btn save">Uložiť</button>
+  <!-- Po fotení: minimalistické uloženie -->
+  <div id="afterPhoto" style="display:none;margin-top:12px">
+    <button id="btnSave" class="btn saveYellow">Uložiť</button>
     <div style="height:10px"></div>
     <button id="btnRetake" class="btn">Znova</button>
     <div style="height:10px"></div>
-    <button id="btnNextScan" class="btn">Skenovať nové</button>
+    <button id="btnBackTasks" class="btn">Späť na úlohy</button>
   </div>
 
   <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none" />
@@ -260,33 +242,19 @@
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
   }
 
-  // =========================
-  // KONFIG – tvoje stĺpce
-  // =========================
+  // ===== KONFIG =====
   const COL_MAIN_AP = "AP";
   const CODE_COLUMNS = ["B","C","AO"];
-
-  // report text
-  const COL_CITY   = "F";
-  const COL_STREET = "G";
-  const COL_HOUSE  = "H";
-  const COL_FIRST  = "J";
-  const COL_LAST   = "K";
-  const COL_PHARM  = "L";
-
-  // plagáty
   const COL_POSTER_FROM = "AG";
   const COL_POSTER_TO   = "AM";
 
-  // Úlohy
   const COL_STAND_FROM = "AG";
   const COL_STAND_TO   = "AJ";
   const COL_B1         = "AK";
   const COL_STATIC     = "AM";
 
-  // Express v DB
-  const COL_EXPRESS = "AL";
-  // =========================
+  const COL_EXPRESS    = "AL";
+  // ==================
 
   const codeOut = document.getElementById('codeOut');
   const dbOut = document.getElementById('dbOut');
@@ -305,17 +273,12 @@
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   const btnStop = document.getElementById('btnStop');
 
-  const photoInput = document.getElementById('photoInput');
-  const preview = document.getElementById('preview');
   const afterPhoto = document.getElementById('afterPhoto');
   const btnSave = document.getElementById('btnSave');
   const btnRetake = document.getElementById('btnRetake');
-  const btnNextScan = document.getElementById('btnNextScan');
-  const noteInput = document.getElementById('noteInput');
+  const btnBackTasks = document.getElementById('btnBackTasks');
 
-  const expressWrap = document.getElementById('expressWrap');
-  const exGrid = document.getElementById('exGrid');
-  const allDoneToast = document.getElementById('allDoneToast');
+  const photoInput = document.getElementById('photoInput');
 
   const dlg = document.getElementById('dlg');
   const manualText = document.getElementById('manualText');
@@ -335,17 +298,15 @@
   const reportWrap = document.getElementById('reportWrap');
 
   let currentCode = "";
-  let stream = null;
-  let scanning = false;
   let lastBlob = null;
 
-  // posledne načítaná plocha (AP) + jej úlohy
-  let currentAP = "";
-  let currentTasks = null; // {needStand, needB1, needStatic, needExpress, standCode, b1Code, staticCodeBase, row}
+  let stream = null;
+  let scanning = false;
 
-  // express state
-  let expressPref = new Set();  // čo je v DB AL
-  let expressPick = new Set();  // čo user vykliká
+  // current AP tasks + express
+  let currentTasks = null;
+  let expressPref = new Set();
+  let expressPick = new Set();
 
   // ===== DB =====
   let dbRows = null;
@@ -357,17 +318,23 @@
     for (let i=0;i<s.length;i++) n = n*26 + (s.charCodeAt(i)-64);
     return n-1;
   }
+  function norm(v){ return String(v ?? "").trim(); }
+  function normCode(v){ return norm(v).toUpperCase(); }
 
-  const IDX_MAIN_AP = colToIndex(COL_MAIN_AP);
+  function stripSuffixABC(code){
+    const s = normCode(code);
+    if(!s) return "";
+    if(/[A-Z]$/.test(s)) return s.slice(0, -1);
+    return s;
+  }
+  function tokenizeCodes(cell){
+    const raw = normCode(cell);
+    if(!raw) return [];
+    return raw.split(/[\s,;\/]+/).map(x=>x.trim()).filter(Boolean);
+  }
+
+  const IDX_AP = colToIndex(COL_MAIN_AP);
   const IDX_CODE_COLS = CODE_COLUMNS.map(c => colToIndex(c));
-
-  const IDX_CITY = colToIndex(COL_CITY);
-  const IDX_STREET = colToIndex(COL_STREET);
-  const IDX_HOUSE = colToIndex(COL_HOUSE);
-  const IDX_FIRST = colToIndex(COL_FIRST);
-  const IDX_LAST = colToIndex(COL_LAST);
-  const IDX_PHARM = colToIndex(COL_PHARM);
-
   const IDX_P_FROM = colToIndex(COL_POSTER_FROM);
   const IDX_P_TO   = colToIndex(COL_POSTER_TO);
 
@@ -377,33 +344,28 @@
   const IDX_STATIC     = colToIndex(COL_STATIC);
   const IDX_EXPRESS    = colToIndex(COL_EXPRESS);
 
-  function normCode(v){ return String(v ?? "").trim().toUpperCase(); }
-
-  function stripSuffixABC(code){
-    const s = normCode(code);
-    if(!s) return "";
-    if(/[A-Z]$/.test(s)) return s.slice(0, -1);
-    return s;
-  }
-
-  function tokenizeCodes(cell){
-    const raw = normCode(cell);
-    if(!raw) return [];
-    return raw.split(/[\s,;\/]+/).map(x=>x.trim()).filter(Boolean);
+  async function loadDbXlsx(){
+    try{
+      const res = await fetch("./db.xlsx", { cache: "no-cache" });
+      if(!res.ok) throw new Error("db.xlsx not found");
+      const buf = await res.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      dbRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+      buildIndex();
+      dbOut.textContent = "DB: OK";
+    }catch(e){
+      dbRows = null; idx = null;
+      dbOut.textContent = "DB: —";
+    }
   }
 
   function buildIndex(){
-    idx = {
-      byAP: new Map(),
-      byAny: new Map()
-    };
+    idx = { byAP:new Map(), byAny:new Map() };
     if(!dbRows) return;
 
-    for(let r=0; r<dbRows.length; r++){
-      const row = dbRows[r];
-      if(!row) continue;
-
-      const ap = normCode(row[IDX_MAIN_AP]);
+    for(const row of dbRows){
+      const ap = normCode(row[IDX_AP]);
       if(ap) idx.byAP.set(ap, row);
 
       for(const ci of IDX_CODE_COLS){
@@ -419,36 +381,19 @@
     }
   }
 
-  async function loadDbXlsx(){
-    try{
-      const res = await fetch("./db.xlsx", { cache: "no-cache" });
-      if(!res.ok) throw new Error("db.xlsx not found");
-      const buf = await res.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array" });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      dbRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
-      buildIndex();
-      dbOut.textContent = "DB: OK";
-    }catch(e){
-      dbRows = null;
-      idx = null;
-      dbOut.textContent = "DB: —";
-    }
-  }
-
   function getRowForPhotoCode(photoCode){
     if(!idx) return null;
     const c = normCode(photoCode);
     if(!c) return null;
-    if(idx.byAP.has(c)) return { ap: c, row: idx.byAP.get(c) };
+    if(idx.byAP.has(c)) return { ap:c, row:idx.byAP.get(c) };
     if(idx.byAny.has(c)){
       const row = idx.byAny.get(c);
-      return { ap: normCode(row[IDX_MAIN_AP]), row };
+      return { ap:normCode(row[IDX_AP]), row };
     }
     const base = stripSuffixABC(c);
     if(base && idx.byAny.has(base)){
       const row = idx.byAny.get(base);
-      return { ap: normCode(row[IDX_MAIN_AP]), row };
+      return { ap:normCode(row[IDX_AP]), row };
     }
     return null;
   }
@@ -457,57 +402,30 @@
     if(!row) return [];
     const set = new Set();
     for(let i=IDX_P_FROM;i<=IDX_P_TO;i++){
-      const v = String(row[i] ?? "").trim();
+      const v = norm(row[i]);
       if(!v) continue;
       v.split(/[\s,;\/]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>set.add(x));
     }
     return Array.from(set);
   }
 
-  function makeJoinedText(row){
-    if(!row) return "";
-    const city = String(row[IDX_CITY] ?? "").trim();
-    const street = String(row[IDX_STREET] ?? "").trim();
-    const house = String(row[IDX_HOUSE] ?? "").trim();
-    const first = String(row[IDX_FIRST] ?? "").trim();
-    const last  = String(row[IDX_LAST] ?? "").trim();
-    const pharm = String(row[IDX_PHARM] ?? "").trim();
-
-    const addr = [city, [street, house].filter(Boolean).join(" ")].filter(Boolean).join(", ");
-    const name = [first, last].filter(Boolean).join(" ");
-    return [addr, name, pharm].filter(Boolean).join(" | ");
-  }
-
   function rowHasAnyText(row, fromIdx, toIdx){
     for(let i=fromIdx;i<=toIdx;i++){
-      if(String(row[i] ?? "").trim() !== "") return true;
+      if(norm(row[i]) !== "") return true;
     }
     return false;
   }
 
   // ===== Local report =====
-  const LOG_KEY = "ids_foto_log_v5";
-  const REP_KEY = "ids_rep_name_v5";
+  const LOG_KEY = "ids_foto_log_v6";
+  const REP_KEY = "ids_rep_name_v6";
 
   function loadLog(){
     try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); }
     catch { return []; }
   }
-  function saveLog(arr){
-    localStorage.setItem(LOG_KEY, JSON.stringify(arr));
-  }
-
-  function safeName(s){
-    return String(s || "").trim().replace(/[\\/:*?"<>|]+/g, "_");
-  }
-
-  function setCode(v){
-    currentCode = String(v || "").trim();
-    codeOut.textContent = currentCode || "—";
-    const has = !!currentCode;
-    btnPhoto.disabled = !has;
-    btnPhoto.classList.toggle("enabled", has);
-  }
+  function saveLog(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)); }
+  function safeName(s){ return norm(s).replace(/[\\/:*?"<>|]+/g, "_"); }
 
   function isoDate(d){
     const y = d.getFullYear();
@@ -519,7 +437,15 @@
     return String(ts||"").split("T")[1]?.slice(0,8) || "";
   }
 
-  // ===== Express UI =====
+  function setCode(v){
+    currentCode = norm(v);
+    codeOut.textContent = currentCode || "—";
+    const has = !!currentCode;
+    btnPhoto.disabled = !has;
+    btnPhoto.classList.toggle("enabled", has);
+  }
+
+  // ===== Express =====
   function parseExTokens(text){
     const s = normCode(text);
     if(!s) return new Set();
@@ -531,49 +457,21 @@
     return out;
   }
 
-  function renderExpressGrid(){
-    exGrid.innerHTML = "";
-    for(let i=1;i<=9;i++){
-      const token = "EX"+i;
-      const div = document.createElement("div");
-      div.className = "exBox";
-
-      // "pre" = už v DB, "on" = user vybral
-      if(expressPref.has(token)) div.classList.add("pre");
-      if(expressPick.has(token)) div.classList.add("on");
-
-      div.textContent = token;
-      div.addEventListener("click", ()=>{
-        if(expressPick.has(token)) expressPick.delete(token);
-        else expressPick.add(token);
-        renderExpressGrid();
-        updateAllDoneToast();
-      });
-      exGrid.appendChild(div);
-    }
-  }
-
   function getExpressNotePart(){
     const arr = Array.from(expressPick);
     arr.sort();
-    if(arr.length === 0) return "";
+    if(arr.length === 0) return ""; // dobrovoľné
     return "EXPRESS: " + arr.join(" ");
   }
 
-  // ===== Úlohy podľa AP =====
+  // ===== Task done check =====
   function isTaskDoneToday(ap, kind, standCode, b1Code, staticBase){
     const day = repDate.value || isoDate(new Date());
     const log = loadLog().filter(x => x.day === day && String(x.ap||"") === ap);
 
-    if(kind === "stand"){
-      return log.some(x => normCode(x.photoCode) === normCode(standCode));
-    }
-    if(kind === "b1"){
-      return log.some(x => normCode(x.photoCode) === normCode(b1Code));
-    }
-    if(kind === "static"){
-      return log.some(x => stripSuffixABC(x.photoCode) === normCode(staticBase));
-    }
+    if(kind === "stand")  return log.some(x => normCode(x.photoCode) === normCode(standCode));
+    if(kind === "b1")     return log.some(x => normCode(x.photoCode) === normCode(b1Code));
+    if(kind === "static") return log.some(x => stripSuffixABC(x.photoCode) === normCode(staticBase));
     return false;
   }
 
@@ -584,42 +482,71 @@
     if(!row) return null;
 
     const needStand  = rowHasAnyText(row, IDX_STAND_FROM, IDX_STAND_TO);
-    const needB1     = String(row[IDX_B1] ?? "").trim() !== "";
-    const needStatic = String(row[IDX_STATIC] ?? "").trim() !== "";
+    const needB1     = norm(row[IDX_B1]) !== "";
+    const needStatic = norm(row[IDX_STATIC]) !== "";
 
-    const standCode  = String(row[colToIndex("B")] ?? "").trim();
-    const b1Code     = String(row[colToIndex("C")] ?? "").trim();
-    const staticCode = String(row[colToIndex("AO")] ?? "").trim(); // base
+    const standCode  = norm(row[colToIndex("B")]);
+    const b1Code     = norm(row[colToIndex("C")]);
+    const staticBase = norm(row[colToIndex("AO")]);
 
-    const expressCell = String(row[IDX_EXPRESS] ?? "").trim();
-    const needExpress = expressCell !== "";
-    const expressPrefSet = parseExTokens(expressCell);
+    const expressCell = norm(row[IDX_EXPRESS]);
+    const showExpress = expressCell !== "";
+    const pref = parseExTokens(expressCell);
 
-    return {
-      ap: apN,
-      row,
-      needStand, needB1, needStatic,
-      standCode, b1Code, staticCodeBase: staticCode,
-      needExpress,
-      expressPrefSet
-    };
+    return { ap: apN, row, needStand, needB1, needStatic, standCode, b1Code, staticBase, showExpress, pref };
   }
 
-  function updateAllDoneToast(){
-    // zobrazuj iba keď máme načítanú plochu
-    if(!currentTasks){ allDoneToast.style.display="none"; return; }
+  function renderExpressInline(prefSet){
+    const exWrap = document.createElement("div");
+    exWrap.className = "exWrap";
 
-    const t = currentTasks;
-    const okStand  = !t.needStand  || isTaskDoneToday(t.ap, "stand",  t.standCode, t.b1Code, t.staticCodeBase);
-    const okB1     = !t.needB1     || isTaskDoneToday(t.ap, "b1",     t.standCode, t.b1Code, t.staticCodeBase);
-    const okStatic = !t.needStatic || isTaskDoneToday(t.ap, "static", t.standCode, t.b1Code, t.staticCodeBase);
+    const title = document.createElement("div");
+    title.className = "exTitle";
+    title.textContent = "Express som odovzdal (dobrovoľné)";
+    exWrap.appendChild(title);
 
-    // express: ak treba express, vyžaduj aspoň 1 vyklikaný EX (reálne odovzdané)
-    const okExpress = !t.needExpress || expressPick.size > 0;
+    const grid = document.createElement("div");
+    grid.className = "exGrid";
 
-    const allOk = okStand && okB1 && okStatic && okExpress;
+    for(let i=1;i<=9;i++){
+      const token = "EX"+i;
+      const box = document.createElement("div");
+      box.className = "exBox";
+      if(prefSet.has(token)) box.classList.add("pre");
+      if(expressPick.has(token)) box.classList.add("on");
+      box.textContent = token;
 
-    allDoneToast.style.display = allOk ? "block" : "none";
+      box.addEventListener("click", ()=>{
+        if(expressPick.has(token)) expressPick.delete(token);
+        else expressPick.add(token);
+        // rerender celé úlohy (jednoduché a bezpečné)
+        renderTasksForAP(currentTasks.ap);
+      });
+
+      grid.appendChild(box);
+    }
+    exWrap.appendChild(grid);
+
+    const hint = document.createElement("div");
+    hint.className = "exHint";
+    hint.textContent = "Modré = odporúčané podľa DB (AL). Vyklikaj iba to, čo si reálne odovzdal.";
+    exWrap.appendChild(hint);
+
+    return exWrap;
+  }
+
+  function allDoneMessage(tasks){
+    const okStand  = !tasks.needStand  || isTaskDoneToday(tasks.ap, "stand",  tasks.standCode, tasks.b1Code, tasks.staticBase);
+    const okB1     = !tasks.needB1     || isTaskDoneToday(tasks.ap, "b1",     tasks.standCode, tasks.b1Code, tasks.staticBase);
+    const okStatic = !tasks.needStatic || isTaskDoneToday(tasks.ap, "static", tasks.standCode, tasks.b1Code, tasks.staticBase);
+    const allOk = okStand && okB1 && okStatic;
+
+    if(!allOk) return null;
+
+    const toast = document.createElement("div");
+    toast.className = "okToast";
+    toast.textContent = "Pri tejto ploche som urobil všetko ✅";
+    return toast;
   }
 
   function renderTasksForAP(ap){
@@ -633,53 +560,57 @@
       tasksWrap.innerHTML = `<div class="warn">AP nenájdené v DB</div>`;
       return;
     }
-
-    currentAP = t.ap;
     currentTasks = t;
 
-    // express init (prefill z DB)
-    expressPref = new Set(t.expressPrefSet);
-    expressPick = new Set(); // user zatiaľ nič nevybral
-    expressWrap.style.display = t.needExpress ? "block" : "none";
-    if(t.needExpress) renderExpressGrid();
+    // reset express pref z DB, ale user výber nech ostáva
+    expressPref = new Set(t.pref);
 
     const makeTask = (kind, label, code, enabled) => {
-      const done = enabled ? isTaskDoneToday(t.ap, kind, t.standCode, t.b1Code, t.staticCodeBase) : false;
+      const done = enabled ? isTaskDoneToday(t.ap, kind, t.standCode, t.b1Code, t.staticBase) : false;
       const cls = enabled ? (done ? "task done" : "task") : "task muted";
       const status = enabled ? (done ? `✓ Odfotené` : `⏺ Čaká`) : `—`;
 
-      return `
-        <div class="${cls}" data-kind="${kind}" data-code="${code}">
-          <div class="taskHeader">
-            <div>${label}</div>
-            <div class="check">${status}</div>
-          </div>
-          <small>Kód: <span class="code">${code || "—"}</span></small>
+      const div = document.createElement("div");
+      div.className = cls;
+      div.innerHTML = `
+        <div class="taskHeader">
+          <div>${label}</div>
+          <div class="check">${status}</div>
         </div>
+        <small>Kód: <span class="code">${code || "—"}</span></small>
       `;
+
+      if(!div.classList.contains("muted")){
+        div.addEventListener("click", ()=>{
+          if(!code) return;
+          setCode(code);
+          openCamera(); // turbo
+        });
+      }
+      return div;
     };
 
-    const parts = [];
-    parts.push(`<div class="tiny">AP: <b>${t.ap}</b> — klikni na úlohu a otvorí sa foto</div>`);
-    parts.push(`<div class="row3" style="margin-top:10px">`);
-    parts.push(makeTask("stand",  "Fotím stojan",          t.standCode,  t.needStand && !!t.standCode));
-    parts.push(makeTask("b1",     "Fotím B1 rám",          t.b1Code,     t.needB1 && !!t.b1Code));
-    parts.push(makeTask("static", "Fotím statický plagát", t.staticCodeBase, t.needStatic && !!t.staticCodeBase));
-    parts.push(`</div>`);
-    tasksWrap.innerHTML = parts.join("");
+    const header = document.createElement("div");
+    header.className = "tiny";
+    header.innerHTML = `AP: <b>${t.ap}</b> — klikni na úlohu a otvorí sa foto`;
+    tasksWrap.appendChild(header);
 
-    // klik na úlohu => nastav kód a HNEĎ otvoriť fotoaparát
-    tasksWrap.querySelectorAll(".task").forEach(el=>{
-      if(el.classList.contains("muted")) return;
-      el.addEventListener("click", ()=>{
-        const code = el.getAttribute("data-code") || "";
-        if(!code) return;
-        setCode(code);
-        openCamera(); // 🔥 turbo
-      });
-    });
+    const row = document.createElement("div");
+    row.className = "row3";
+    row.style.marginTop = "10px";
+    row.appendChild(makeTask("stand",  "Fotím stojan",          t.standCode,  t.needStand && !!t.standCode));
+    row.appendChild(makeTask("b1",     "Fotím B1 rám",          t.b1Code,     t.needB1 && !!t.b1Code));
+    row.appendChild(makeTask("static", "Fotím statický plagát", t.staticBase, t.needStatic && !!t.staticBase));
+    tasksWrap.appendChild(row);
 
-    updateAllDoneToast();
+    // Express inline hneď po úlohách
+    if(t.showExpress){
+      tasksWrap.appendChild(renderExpressInline(expressPref));
+    }
+
+    // všetko hotové (len fotky, Express dobrovoľný)
+    const toast = allDoneMessage(t);
+    if(toast) tasksWrap.appendChild(toast);
   }
 
   // ===== Scan =====
@@ -775,11 +706,7 @@
       return;
     }
     const posters = getPostersFromRow(row);
-    if(posters.length === 0){
-      postersEl.innerHTML = "<span class='pill'>—</span>";
-      return;
-    }
-    postersEl.innerHTML = posters.map(x => `<span class="pill">${x}</span>`).join("");
+    postersEl.innerHTML = posters.length ? posters.map(x => `<span class="pill">${x}</span>`).join("") : "<span class='pill'>—</span>";
   }
 
   // ===== Report =====
@@ -796,7 +723,7 @@
 
     let html = `<table>
       <thead><tr>
-        <th>Čas</th><th>Kto</th><th>AP</th><th>Fotil</th><th>Text</th><th>Plagáty</th><th>Poznámka</th><th>Súbor</th>
+        <th>Čas</th><th>Kto</th><th>AP</th><th>Fotil</th><th>Plagáty</th><th>Poznámka</th><th>Súbor</th>
       </tr></thead><tbody>`;
 
     for(const r of rows){
@@ -805,7 +732,6 @@
         <td>${r.who || ""}</td>
         <td><b>${r.ap || ""}</b></td>
         <td>${r.photoCode || ""}</td>
-        <td>${r.joined || ""}</td>
         <td>${(r.posters && r.posters.length) ? r.posters.join(", ") : "—"}</td>
         <td>${r.note || ""}</td>
         <td>${r.file || ""}</td>
@@ -830,7 +756,7 @@
       return;
     }
 
-    const header = ["day","time","who","ap","photoCode","joinedText","posters","note","file"];
+    const header = ["day","time","who","ap","photoCode","posters","note","file"];
     const lines = [header.join(";")];
 
     for(const r of log){
@@ -840,7 +766,6 @@
         escapeCsv(r.who),
         escapeCsv(r.ap),
         escapeCsv(r.photoCode),
-        escapeCsv(r.joined),
         escapeCsv((r.posters && r.posters.length) ? r.posters.join(", ") : ""),
         escapeCsv(r.note),
         escapeCsv(r.file)
@@ -869,17 +794,69 @@
     if(apInput.value.trim()) renderTasksForAP(apInput.value.trim());
   }
 
-  // ===== Save photo => log + refresh tasks =====
-  function buildFinalNote(){
-    const userNote = (noteInput.value || "").trim();
-    const exPart = getExpressNotePart();
+  // ===== Photo flow =====
+  photoInput.addEventListener('change', ()=>{
+    const f = photoInput.files && photoInput.files[0];
+    if(!f) return;
+    lastBlob = f;
 
-    if(userNote && exPart) return userNote + " | " + exPart;
-    if(exPart) return exPart;
-    return userNote;
-  }
+    // minimalistický režim: ukáž iba Uložiť/Znova
+    afterPhoto.style.display = "block";
+  });
 
-  // ===== UI events =====
+  btnRetake.addEventListener('click', ()=>{
+    lastBlob = null;
+    afterPhoto.style.display = "none";
+    openCamera();
+  });
+
+  btnBackTasks.addEventListener('click', ()=>{
+    lastBlob = null;
+    afterPhoto.style.display = "none";
+  });
+
+  btnSave.addEventListener('click', ()=>{
+    if(!currentCode || !lastBlob) return;
+
+    const filename = safeName(currentCode) + ".jpg";
+    downloadNow(lastBlob, filename);
+
+    const resolved = getRowForPhotoCode(currentCode);
+    const ap = resolved ? resolved.ap : "";
+    const row = resolved ? resolved.row : null;
+
+    const posters = row ? getPostersFromRow(row) : [];
+
+    // poznámka = iba Express (dobrovoľné) – nič viac, aby sme ostali minimalistickí
+    const note = getExpressNotePart();
+
+    const now = new Date();
+    const entry = {
+      ts: now.toISOString().slice(0,19),
+      day: isoDate(now),
+      who: (repName.value || "").trim(),
+      ap: ap,
+      photoCode: String(currentCode),
+      posters: posters,
+      note: note,
+      file: filename
+    };
+
+    const log = loadLog();
+    log.push(entry);
+    saveLog(log);
+
+    // refresh report + tasks
+    renderReport();
+    if(apInput.value.trim()) renderTasksForAP(apInput.value.trim());
+
+    // pripravené na ďalšie fotenie
+    lastBlob = null;
+    afterPhoto.style.display = "none";
+    setCode("");
+  });
+
+  // ===== Buttons =====
   btnScan.addEventListener('click', startScan);
   btnStop.addEventListener('click', stopScan);
 
@@ -897,98 +874,6 @@
   manualText.addEventListener('keydown', (e)=>{ if(e.key==="Enter") dlgOk.click(); });
 
   btnPhoto.addEventListener('click', openCamera);
-
-  photoInput.addEventListener('change', ()=>{
-    const f = photoInput.files && photoInput.files[0];
-    if(!f) return;
-    lastBlob = f;
-    preview.src = URL.createObjectURL(f);
-    preview.style.display = "block";
-    afterPhoto.style.display = "block";
-
-    // keď fotím mimo „AP úloh“, express sekcia sa skryje
-    // keď som načítal AP, necháme express sekciu podľa potreby
-    if(currentTasks && currentTasks.needExpress){
-      expressWrap.style.display = "block";
-      renderExpressGrid();
-    }else{
-      expressWrap.style.display = "none";
-    }
-
-    updateAllDoneToast();
-  });
-
-  btnRetake.addEventListener('click', ()=>{
-    lastBlob = null;
-    preview.style.display = "none";
-    preview.src = "";
-    afterPhoto.style.display = "none";
-    openCamera();
-  });
-
-  btnSave.addEventListener('click', ()=>{
-    if(!currentCode || !lastBlob) return;
-
-    const filename = safeName(currentCode) + ".jpg";
-    downloadNow(lastBlob, filename);
-
-    const who = (repName.value || "").trim();
-    const note = buildFinalNote();
-
-    const resolved = getRowForPhotoCode(currentCode);
-    const ap = resolved ? resolved.ap : "";
-    const row = resolved ? resolved.row : null;
-
-    const posters = row ? getPostersFromRow(row) : [];
-    const joined  = row ? makeJoinedText(row) : "";
-
-    const now = new Date();
-    const entry = {
-      ts: now.toISOString().slice(0,19),
-      day: isoDate(now),
-      who: who,
-      ap: ap,
-      photoCode: String(currentCode),
-      joined: joined,
-      posters: posters,
-      note: note,
-      file: filename
-    };
-    const log = loadLog();
-    log.push(entry);
-    saveLog(log);
-
-    // refresh report + tasks
-    renderReport();
-    if(apInput.value.trim()) renderTasksForAP(apInput.value.trim());
-
-    // reset photo UI
-    lastBlob = null;
-    preview.style.display = "none";
-    preview.src = "";
-    afterPhoto.style.display = "none";
-    noteInput.value = "";
-    setCode("");
-
-    // express pick nech ostane (aby mohol fotiť ešte ďalšie v rámci tej istej plochy),
-    // ale keď dá "Skenovať nové", resetneme to.
-    updateAllDoneToast();
-  });
-
-  btnNextScan.addEventListener('click', ()=>{
-    lastBlob = null;
-    preview.style.display = "none";
-    preview.src = "";
-    afterPhoto.style.display = "none";
-    noteInput.value = "";
-    setCode("");
-
-    // reset express výber pri novom kole
-    expressPick = new Set();
-    updateAllDoneToast();
-
-    startScan();
-  });
 
   btnLookup.addEventListener('click', ()=> showPostersFor(lookupCode.value));
   lookupCode.addEventListener('keydown', (e)=>{ if(e.key==="Enter") btnLookup.click(); });
