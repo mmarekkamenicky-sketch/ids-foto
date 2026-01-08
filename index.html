@@ -12,14 +12,12 @@
 
   <style>
     :root{
-      --bg:#ffffff;
+      --bg:#fff;
       --text:#111;
       --muted:#777;
 
-      --yellow:#ffrf00;
+      --yellow:#ffd400;
       --yellow2:#fff1a8;
-
-      --grayCard:#f2f2f2;
 
       --green:#0a7a2f;
       --greenBg:#eefaf2;
@@ -37,17 +35,8 @@
 
     *{ border-radius:8px; }
 
-    .card{
-      border:none;
-      padding:12px;
-      background:#fff;
-    }
-
-    .row{
-      display:flex;
-      gap:10px;
-      align-items:center;
-    }
+    .card{ border:none; padding:12px; background:#fff; }
+    .row{ display:flex; gap:10px; align-items:center; }
 
     input, textarea{
       width:100%;
@@ -69,33 +58,15 @@
       background:#111;
       color:#fff;
     }
-
     .btn.yellow{
       background:var(--yellow);
       color:#111;
       font-size:20px;
       padding:18px 16px;
     }
-
-    .btn.gray{
-      background:#e9e9e9;
-      color:#111;
-      font-weight:900;
-    }
-
-    .btn.green{
-      background:var(--green);
-      color:#fff;
-      font-size:18px;
-      padding:18px 16px;
-    }
-
-    .btn.red{
-      background:var(--red);
-      color:#fff;
-      font-size:18px;
-      padding:18px 16px;
-    }
+    .btn.gray{ background:#e9e9e9; color:#111; font-weight:900; }
+    .btn.green{ background:var(--green); color:#fff; font-size:18px; padding:18px 16px; }
+    .btn.red{ background:var(--red); color:#fff; font-size:18px; padding:18px 16px; }
 
     .linkBtn{
       border:0;
@@ -127,27 +98,17 @@
     }
     .okIcon{
       width:64px;height:64px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
+      display:flex;align-items:center;justify-content:center;
       background:rgba(10,122,47,.12);
       color:var(--green);
       border-radius:999px;
       font-size:34px;
       font-weight:900;
     }
-    .okTitle{
-      font-weight:900;
-      font-size:26px;
-      line-height:1.1;
-    }
-    .okSub{
-      color:#2f7a4a;
-      font-weight:800;
-      opacity:.9;
-      font-size:14px;
-    }
+    .okTitle{ font-weight:900; font-size:26px; line-height:1.1; }
+    .okSub{ color:#2f7a4a; font-weight:800; opacity:.9; font-size:14px; }
 
+    /* tasks */
     .task{
       border:none;
       padding:14px 14px;
@@ -157,20 +118,11 @@
       gap:10px;
       user-select:none;
       cursor:pointer;
-      background:#f3f3f3;
+      background:var(--yellow2);
     }
-    .task .left{
-      display:flex;
-      flex-direction:column;
-      gap:8px;
-      min-width:0;
-      flex:1 1 auto;
-    }
-    .task .title{
-      font-weight:900;
-      font-size:16px;
-      line-height:1.1;
-    }
+    .task.done{ background:var(--greenBg); color:var(--green); }
+    .task .left{ display:flex; flex-direction:column; gap:8px; min-width:0; flex:1 1 auto; }
+    .task .title{ font-weight:900; font-size:16px; line-height:1.1; }
     .task .code{
       font-weight:900;
       color:#111;
@@ -178,7 +130,6 @@
       border:none;
       padding:10px 12px;
       display:inline-block;
-      border-radius:8px;
       width:max-content;
       max-width:100%;
       overflow:hidden;
@@ -186,16 +137,13 @@
       white-space:nowrap;
     }
 
-    .task.todo{ background:var(--yellow2); }
-    .task.off{ background:var(--grayCard); color:#777; cursor:default; }
-    .task.done{ background:var(--greenBg); color:var(--green); }
-
     .suffixWrap{
       display:flex;
       gap:10px;
       flex-wrap:wrap;
       align-items:center;
       justify-content:flex-start;
+      margin-top:8px;
     }
     .suffixBtn{
       border:none;
@@ -207,20 +155,34 @@
       cursor:pointer;
       user-select:none;
     }
-    .suffixBtn.active{
-      box-shadow:0 0 0 2px rgba(0,0,0,.12) inset;
-    }
+    .suffixBtn.active{ box-shadow:0 0 0 2px rgba(0,0,0,.12) inset; }
 
+    /* After photo */
     #afterPhoto{ display:none; }
     .bigSave{ width:100%; }
 
+    /* Express */
     #expressBlock{ display:none; }
-    .subcard{
-      border:none;
-      padding:12px;
-      background:#f3f3f3;
-    }
+    .subcard{ border:none; padding:12px; background:#f3f3f3; }
 
+    .exGrid{
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap:10px;
+      margin-top:10px;
+    }
+    .exItem{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      background:#fff;
+      padding:12px 12px;
+      user-select:none;
+    }
+    .exItem input{ width:auto; margin:0; padding:0; }
+    .exItem label{ font-weight:900; cursor:pointer; }
+
+    /* Bottom minimal icons */
     .bottomBar{
       margin-top:12px;
       display:flex;
@@ -260,12 +222,9 @@
     th,td{border-bottom:1px solid #eee;padding:8px 6px;font-size:12.5px;vertical-align:top}
     th{text-align:left;font-size:11px;color:#666}
 
+    /* Mini info (plagáty + adresa) */
     #miniInfoWrap{ display:none; }
-    .miniInfo{
-      background:#f6f6f6;
-      padding:10px;
-      border-radius:8px;
-    }
+    .miniInfo{ background:#f6f6f6; padding:10px; }
     .miniTitle{
       font-size:11px;
       font-weight:900;
@@ -274,30 +233,17 @@
       text-transform:uppercase;
       letter-spacing:.02em;
     }
-    .miniLine{
-      font-size:12.5px;
-      color:#111;
-      line-height:1.35;
-      margin:2px 0;
-      word-break:break-word;
-    }
-    .miniPills{
-      display:flex;
-      flex-wrap:wrap;
-      gap:6px;
-      margin-top:6px;
-    }
-    .miniPill{
-      font-size:12px;
-      font-weight:900;
-      background:#eaeaea;
-      padding:6px 8px;
-    }
+    .miniLine{ font-size:12.5px; color:#111; line-height:1.35; margin:2px 0; word-break:break-word; }
+    .miniPills{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+    .miniPill{ font-size:12px; font-weight:900; background:#eaeaea; padding:6px 8px; }
+
+    /* Notes at very bottom */
+    #noteCard{ display:none; margin-top:12px; }
   </style>
 </head>
 <body>
 
-  <!-- ✅ ONLY THIS when all done -->
+  <!-- ALL DONE -->
   <div id="topOkBanner" class="card">
     <div class="okFull">
       <div class="okIcon">✓</div>
@@ -305,12 +251,10 @@
       <div class="okSub">Môžeš pokračovať na ďalšiu plochu</div>
 
       <button id="btnOkNext" class="btn green" style="width:100%;max-width:360px">Nové</button>
-
       <button id="btnShowDetails" class="linkBtn">Zobraziť podrobnosti</button>
     </div>
   </div>
 
-  <!-- MAIN UI WRAPPER -->
   <div id="mainUi">
     <div class="card">
       <div class="row">
@@ -333,19 +277,22 @@
 
       <div class="sp2"></div>
 
-      <!-- ✅ Poznámka (dobrovoľná) -->
-      <div class="subcard">
-        <textarea id="noteText" placeholder="Poznámka"></textarea>
-      </div>
-
-      <div class="sp2"></div>
-
+      <!-- Express -->
       <div id="expressBlock" class="subcard">
-        <button id="btnExpressToggle" class="btn gray" style="width:100%">Express som odovzdal</button>
+        <button id="btnExpressToggle" class="btn gray" style="width:100%">Express</button>
+
         <div id="expressArea" style="display:none;margin-top:10px">
-          <textarea id="expressText" placeholder=""></textarea>
+          <div class="muted" id="expressHint" style="margin-bottom:8px"></div>
+
+          <div class="exGrid" id="exGrid"></div>
+
           <div class="sp"></div>
-          <button id="btnSaveExpress" class="btn" style="width:100%">Uložiť</button>
+
+          <!-- voliteľný doplnkový text, keby chcel -->
+          <textarea id="expressExtra" placeholder="Poznámka k expressu (voliteľné)"></textarea>
+
+          <div class="sp"></div>
+          <button id="btnSaveExpress" class="btn" style="width:100%">Uložiť express</button>
         </div>
       </div>
 
@@ -390,7 +337,14 @@
       <div id="reportWrap" style="display:none"></div>
     </div>
 
-    <!-- ✅ Mini info úplne dole -->
+    <!-- Poznámka úplne dole -->
+    <div id="noteCard" class="card">
+      <div class="subcard">
+        <textarea id="noteText" placeholder="Poznámka"></textarea>
+      </div>
+    </div>
+
+    <!-- Mini info úplne dole -->
     <div id="miniInfoWrap" class="card">
       <div class="miniInfo">
         <div class="miniTitle">Plocha</div>
@@ -421,19 +375,13 @@
 <script>
   // ===== DB config =====
   const COL_MAIN_AP = "AP";
-  const CODE_COLUMNS = ["B","C","AO"];
   const COL_STAND_FROM = "AG", COL_STAND_TO = "AJ";
   const COL_B1 = "AK";
   const COL_STATIC = "AM";
   const COL_EXPRESS = "AL";
 
   // info fields
-  const COL_CITY = "F";
-  const COL_STREET = "G";
-  const COL_HOUSE = "H";
-  const COL_NAME = "J";
-  const COL_SURNAME = "K";
-  const COL_PHARMACY = "L";
+  const COL_CITY="F", COL_STREET="G", COL_HOUSE="H", COL_NAME="J", COL_SURNAME="K", COL_PHARMACY="L";
 
   // ===== Elements =====
   const mainUi = document.getElementById('mainUi');
@@ -450,16 +398,6 @@
 
   const tasksCard = document.getElementById('tasksCard');
   const taskList = document.getElementById('taskList');
-
-  const noteText = document.getElementById('noteText');
-
-  const expressBlock = document.getElementById('expressBlock');
-  const btnExpressToggle = document.getElementById('btnExpressToggle');
-  const expressArea = document.getElementById('expressArea');
-  const expressTextEl = document.getElementById('expressText');
-  const btnSaveExpress = document.getElementById('btnSaveExpress');
-
-  const btnFinish = document.getElementById('btnFinish');
 
   const afterPhoto = document.getElementById('afterPhoto');
   const btnSavePhoto = document.getElementById('btnSavePhoto');
@@ -483,14 +421,26 @@
   const btnExportCsv = document.getElementById('btnExportCsv');
   const reportWrap = document.getElementById('reportWrap');
 
+  const noteCard = document.getElementById('noteCard');
+  const noteText = document.getElementById('noteText');
+
   const miniInfoWrap = document.getElementById('miniInfoWrap');
   const miniAddress = document.getElementById('miniAddress');
   const miniPerson = document.getElementById('miniPerson');
   const miniPharmacy = document.getElementById('miniPharmacy');
   const miniPosters = document.getElementById('miniPosters');
 
+  const expressBlock = document.getElementById('expressBlock');
+  const btnExpressToggle = document.getElementById('btnExpressToggle');
+  const expressArea = document.getElementById('expressArea');
+  const exGrid = document.getElementById('exGrid');
+  const expressHint = document.getElementById('expressHint');
+  const expressExtra = document.getElementById('expressExtra');
+  const btnSaveExpress = document.getElementById('btnSaveExpress');
+
   const dlgFinish = document.getElementById('dlgFinish');
   const finishText = document.getElementById('finishText');
+  const btnFinish = document.getElementById('btnFinish');
   const btnFinishNo = document.getElementById('btnFinishNo');
   const btnFinishYes = document.getElementById('btnFinishYes');
 
@@ -503,18 +453,6 @@
   }
   function norm(v){ return String(v ?? "").trim(); }
   function normCode(v){ return norm(v).toUpperCase(); }
-
-  function stripSuffixABC(code){
-    const s = normCode(code);
-    if(!s) return "";
-    if(/[A-Z]$/.test(s)) return s.slice(0, -1);
-    return s;
-  }
-  function tokenizeCodes(cell){
-    const raw = normCode(cell);
-    if(!raw) return [];
-    return raw.split(/[\s,;\/]+/).map(x=>x.trim()).filter(Boolean);
-  }
   function safeName(s){ return norm(s).replace(/[\\/:*?"<>|]+/g, "_"); }
   function isoDate(d){
     const y = d.getFullYear();
@@ -531,39 +469,21 @@
     btnCamera.className = ok ? "btn red" : "btn gray";
   }
 
-  // toggle detail view when all done
-  let detailsVisible = false;
-
-  function showAllDoneOnly(){
-    mainUi.style.display = "none";
-    topOkBanner.style.display = "block";
-    detailsVisible = false;
-    btnShowDetails.textContent = "Zobraziť podrobnosti";
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function showMainUi(){
-    topOkBanner.style.display = "none";
-    mainUi.style.display = "block";
-  }
-
-  btnShowDetails.addEventListener("click", ()=>{
-    // keď sme v režime all-done, nech vie dočasne pozrieť podrobnosti
-    detailsVisible = !detailsVisible;
-    if(detailsVisible){
-      showMainUi();
-      topOkBanner.style.display = "block"; // nech ostane hore dostupné
-      btnShowDetails.textContent = "Skryť podrobnosti";
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }else{
-      showAllDoneOnly();
+  function parseEXTokens(s){
+    // zoberie EX1..EX9 aj keď sú v texte s rôznymi oddeľovačmi
+    const t = normCode(s).replace(/[,\.;\/\\]+/g, " ");
+    const parts = t.split(/\s+/).filter(Boolean);
+    const out = [];
+    for(const p of parts){
+      const m = /^EX([1-9])$/.exec(p);
+      if(m) out.push("EX"+m[1]);
     }
-  });
+    return Array.from(new Set(out));
+  }
 
   // ===== DB index =====
   let dbRows=null, idx=null;
   const IDX_AP = colToIndex(COL_MAIN_AP);
-  const IDX_CODE_COLS = CODE_COLUMNS.map(c => colToIndex(c));
   const IDX_STAND_FROM = colToIndex(COL_STAND_FROM);
   const IDX_STAND_TO = colToIndex(COL_STAND_TO);
   const IDX_B1 = colToIndex(COL_B1);
@@ -579,12 +499,12 @@
 
   async function loadDbXlsx(){
     try{
-      const res = await fetch("./db.xlsx", { cache: "no-cache" });
+      const res = await fetch("./db.xlsx", { cache:"no-cache" });
       if(!res.ok) throw new Error("db.xlsx not found");
       const buf = await res.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array" });
+      const wb = XLSX.read(buf, { type:"array" });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      dbRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+      dbRows = XLSX.utils.sheet_to_json(ws, { header:1, defval:"" });
       buildIndex();
     }catch(e){
       dbRows=null; idx=null;
@@ -592,23 +512,11 @@
   }
 
   function buildIndex(){
-    idx = { byAP:new Map(), byAny:new Map() };
+    idx = { byAP:new Map() };
     if(!dbRows) return;
-
     for(const row of dbRows){
       const ap = normCode(row[IDX_AP]);
       if(ap) idx.byAP.set(ap, row);
-
-      for(const ci of IDX_CODE_COLS){
-        const codes = tokenizeCodes(row[ci]);
-        for(const c of codes){
-          const cc = normCode(c);
-          if(!cc) continue;
-          idx.byAny.set(cc, row);
-          const base = stripSuffixABC(cc);
-          if(base) idx.byAny.set(base, row);
-        }
-      }
     }
   }
 
@@ -634,7 +542,8 @@
 
   function renderMiniInfo(row){
     if(!row){
-      miniInfoWrap.style.display = "none";
+      miniInfoWrap.style.display="none";
+      noteCard.style.display="none";
       return;
     }
     const city = norm(row[IDX_CITY]);
@@ -653,40 +562,39 @@
     miniPharmacy.textContent = pharmacy ? pharmacy : "—";
 
     const posters = getPostersFromRow(row);
-    miniPosters.innerHTML = "";
+    miniPosters.innerHTML="";
     if(posters.length){
       posters.forEach(p=>{
-        const d = document.createElement("div");
-        d.className = "miniPill";
-        d.textContent = p;
+        const d=document.createElement("div");
+        d.className="miniPill";
+        d.textContent=p;
         miniPosters.appendChild(d);
       });
     }else{
-      const d = document.createElement("div");
-      d.className = "miniLine";
-      d.textContent = "—";
+      const d=document.createElement("div");
+      d.className="miniLine";
+      d.textContent="—";
       miniPosters.appendChild(d);
     }
 
-    miniInfoWrap.style.display = "block";
+    miniInfoWrap.style.display="block";
+    noteCard.style.display="block";
   }
 
-  // ===== Session state =====
+  // ===== State =====
   let currentTasks=null;
   let currentPhotoCode="";
   let lastBlob=null;
+  let detailsVisible=false;
 
-  let staticSuffix="A";
+  // express state
   let expressSaved=false;
+  let expressSuggested=[];   // from AL
+  let expressPicked=[];      // user picked
 
-  let sessionDone = { stand:false, b1:false, stat:false };
-  function resetSessionFlags(){
-    sessionDone = { stand:false, b1:false, stat:false };
-  }
-
-  // ===== Log/report =====
-  const LOG_KEY="ids_foto_log_v14";
-  const REP_KEY="ids_rep_name_v14";
+  // ===== Report/log =====
+  const LOG_KEY="ids_foto_log_v15";
+  const REP_KEY="ids_rep_name_v15";
 
   function loadLog(){
     try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); }
@@ -762,204 +670,258 @@
       ].join(";"));
     }
     const csv = lines.join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
     const filename = `report_${day}_${safeName(repName.value || "repre")}.csv`;
     downloadNow(blob, filename);
   }
 
-  // ===== Task completion =====
-  function isPhotoDoneToday(ap, type, standCode, b1Code, staticBase){
-    if(type==="stand" && sessionDone.stand) return true;
-    if(type==="b1" && sessionDone.b1) return true;
-    if(type==="static" && sessionDone.stat) return true;
-
-    const day = repDate.value || isoDate(new Date());
-    const log = loadLog().filter(x => x.day === day && String(x.ap||"") === ap);
-
-    if(type==="stand") return log.some(x => normCode(x.photoCode) === normCode(standCode));
-    if(type==="b1")    return log.some(x => normCode(x.photoCode) === normCode(b1Code));
-    if(type==="static")return log.some(x => stripSuffixABC(x.photoCode) === normCode(staticBase));
-    return false;
+  // ===== UI: All done =====
+  function showAllDoneOnly(){
+    mainUi.style.display="none";
+    topOkBanner.style.display="block";
+    detailsVisible=false;
+    btnShowDetails.textContent="Zobraziť podrobnosti";
+    window.scrollTo({ top:0, behavior:"smooth" });
   }
+  function showMainUi(){
+    topOkBanner.style.display="none";
+    mainUi.style.display="block";
+  }
+  btnShowDetails.addEventListener("click", ()=>{
+    detailsVisible = !detailsVisible;
+    if(detailsVisible){
+      showMainUi();
+      topOkBanner.style.display="block";
+      btnShowDetails.textContent="Skryť podrobnosti";
+      window.scrollTo({ top:0, behavior:"smooth" });
+    }else{
+      showAllDoneOnly();
+    }
+  });
 
+  // ===== Tasks compute =====
   function computeTasks(ap){
     if(!idx) return null;
     const apN = normCode(ap);
     const row = idx.byAP.get(apN);
     if(!row) return null;
 
-    const needStand = rowHasAnyText(row, colToIndex("AG"), colToIndex("AJ"));
-    const needB1 = norm(row[colToIndex("AK")]) !== "";
-    const needStatic = norm(row[colToIndex("AM")]) !== "";
+    const needStand = rowHasAnyText(row, IDX_STAND_FROM, IDX_STAND_TO);
+    const needB1 = norm(row[IDX_B1]) !== "";
+    const needStatic = norm(row[IDX_STATIC]) !== "";
 
     const standCode = norm(row[colToIndex("B")]);
     const b1Code = norm(row[colToIndex("C")]);
     const staticBase = norm(row[colToIndex("AO")]);
 
-    const needExpress = norm(row[colToIndex("AL")]) !== "";
+    const needExpress = norm(row[IDX_EXPRESS]) !== "";
+    const suggestedExpress = parseEXTokens(row[IDX_EXPRESS]);
 
-    return { ap: apN, row, needStand, needB1, needStatic, standCode, b1Code, staticBase, needExpress };
+    return { ap: apN, row, needStand, needB1, needStatic, standCode, b1Code, staticBase, needExpress, suggestedExpress };
   }
 
-  function makeTaskRow({label, code, state, onClick}){
+  // ===== Task rows (only show what is needed) =====
+  function makeTaskRow({label, code, done, onClick}){
     const div = document.createElement("div");
-    div.className = "task " + state;
+    div.className = "task" + (done ? " done" : "");
 
     const left = document.createElement("div");
-    left.className = "left";
+    left.className="left";
 
     const title = document.createElement("div");
-    title.className = "title";
-    title.textContent = label;
+    title.className="title";
+    title.textContent=label;
 
     const codeEl = document.createElement("div");
-    codeEl.className = "code";
-    codeEl.textContent = code || "—";
+    codeEl.className="code";
+    codeEl.textContent=code || "—";
 
     left.appendChild(title);
     left.appendChild(codeEl);
     div.appendChild(left);
 
-    if(state !== "off" && typeof onClick === "function"){
-      div.addEventListener("click", onClick);
-    }
+    div.addEventListener("click", onClick);
     return div;
   }
 
-  function makeStaticRow(t, state){
+  function makeStaticRow(t, done){
     const div = document.createElement("div");
-    div.className = "task " + state;
+    div.className = "task" + (done ? " done" : "");
 
     const left = document.createElement("div");
-    left.className = "left";
+    left.className="left";
 
     const title = document.createElement("div");
-    title.className = "title";
-    title.textContent = "Fotím statický plagát";
+    title.className="title";
+    title.textContent="Fotím statický plagát";
 
     const codeEl = document.createElement("div");
-    codeEl.className = "code";
-    codeEl.textContent = t.staticBase || "—";
+    codeEl.className="code";
+    codeEl.textContent=t.staticBase || "—";
 
     const suffixWrap = document.createElement("div");
-    suffixWrap.className = "suffixWrap";
-    suffixWrap.style.marginTop = "8px";
+    suffixWrap.className="suffixWrap";
 
-    const mkSuffix = (s)=>{
-      const b = document.createElement("div");
-      b.className = "suffixBtn";
-      b.textContent = s;
-      if(staticSuffix===s) b.classList.add("active");
-
-      b.addEventListener("click", (ev)=>{
+    ["A","B","C"].forEach(s=>{
+      const b=document.createElement("div");
+      b.className="suffixBtn" + (t._suffix===s ? " active":"");
+      b.textContent=s;
+      b.addEventListener("click",(ev)=>{
         ev.stopPropagation();
-        staticSuffix = s;
+        t._suffix = s;
         renderTasks();
 
-        const base = t.staticBase || "";
+        const base=t.staticBase||"";
         if(!base) return;
-        manualCode.value = base + staticSuffix;
+        manualCode.value = base + s;
         refreshCameraButton();
         currentPhotoCode = manualCode.value.trim();
         openCamera();
       });
-      return b;
-    };
-
-    ["A","B","C"].forEach(s=> suffixWrap.appendChild(mkSuffix(s)));
+      suffixWrap.appendChild(b);
+    });
 
     left.appendChild(title);
     left.appendChild(codeEl);
     left.appendChild(suffixWrap);
     div.appendChild(left);
 
-    if(state !== "off"){
-      div.addEventListener("click", ()=>{
-        const base = t.staticBase || "";
-        if(!base) return;
-        manualCode.value = base;
-        refreshCameraButton();
-        currentPhotoCode = base;
-        openCamera();
-      });
-    }
+    div.addEventListener("click", ()=>{
+      const base=t.staticBase||"";
+      if(!base) return;
+      manualCode.value=base;
+      refreshCameraButton();
+      currentPhotoCode=base;
+      openCamera();
+    });
 
     return div;
   }
 
-  function updateAllDoneState(){
-    if(!currentTasks){
-      showMainUi();
-      return;
+  // ===== Photo completion tracking (today by AP + code) =====
+  function isPhotoDoneToday(ap, type, codeOrBase){
+    const day = repDate.value || isoDate(new Date());
+    const log = loadLog().filter(x => x.day === day && String(x.ap||"") === ap);
+
+    if(type==="exact"){
+      return log.some(x => normCode(x.photoCode) === normCode(codeOrBase));
     }
+    if(type==="base"){ // static base
+      const base = normCode(codeOrBase);
+      return log.some(x => normCode((x.photoCode||"").replace(/[A-Z]$/,"")) === base);
+    }
+    return false;
+  }
+
+  // ===== Express UI =====
+  function renderExpressUI(){
+    exGrid.innerHTML = "";
+    const suggested = expressSuggested || [];
+    expressHint.textContent = suggested.length ? ("Návrh: " + suggested.join(" ")) : "Bez návrhu";
+
+    const all = ["EX1","EX2","EX3","EX4","EX5","EX6","EX7","EX8","EX9"];
+    all.forEach(ex=>{
+      const id = "cb_" + ex;
+      const wrap = document.createElement("div");
+      wrap.className = "exItem";
+
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.id = id;
+
+      // pred-zaškrtnúť podľa návrhu
+      cb.checked = suggested.includes(ex);
+
+      const lab = document.createElement("label");
+      lab.htmlFor = id;
+      lab.textContent = ex;
+
+      wrap.appendChild(cb);
+      wrap.appendChild(lab);
+      exGrid.appendChild(wrap);
+    });
+  }
+
+  function readExpressPicked(){
+    const picked=[];
+    for(let i=1;i<=9;i++){
+      const ex="EX"+i;
+      const cb=document.getElementById("cb_"+ex);
+      if(cb && cb.checked) picked.push(ex);
+    }
+    return picked;
+  }
+
+  // ===== Render tasks =====
+  function updateAllDoneState(){
+    if(!currentTasks) return;
 
     const t = currentTasks;
-    const doneStand = !t.needStand || isPhotoDoneToday(t.ap,"stand",t.standCode,t.b1Code,t.staticBase);
-    const doneB1 = !t.needB1 || isPhotoDoneToday(t.ap,"b1",t.standCode,t.b1Code,t.staticBase);
-    const doneStatic = !t.needStatic || isPhotoDoneToday(t.ap,"static",t.standCode,t.b1Code,t.staticBase);
-    const doneExpress = !t.needExpress || expressSaved;
 
-    const allDone = doneStand && doneB1 && doneStatic && doneExpress;
+    const doneStand = !t.needStand || isPhotoDoneToday(t.ap,"exact",t.standCode);
+    const doneB1    = !t.needB1    || isPhotoDoneToday(t.ap,"exact",t.b1Code);
+    const doneStat  = !t.needStatic|| isPhotoDoneToday(t.ap,"base",t.staticBase);
+    const doneExpr  = !t.needExpress || expressSaved; // express dobrovoľne, ale ak bol "needExpress" v DB, stále je to len možnosť — nezablokuje all done
+    // ✅ express nemá blokovať „všetko hotové“
+    const allDone = doneStand && doneB1 && doneStat;
 
-    if(allDone && !detailsVisible){
-      showAllDoneOnly();
-    }else{
-      showMainUi();
-    }
+    if(allDone && !detailsVisible) showAllDoneOnly();
+    else showMainUi();
   }
 
   function renderTasks(){
     const t = currentTasks;
     taskList.innerHTML = "";
 
-    const enabledStand = t.needStand && !!t.standCode;
-    const doneStand = enabledStand ? isPhotoDoneToday(t.ap,"stand",t.standCode,t.b1Code,t.staticBase) : false;
-    const stateStand = enabledStand ? (doneStand ? "done" : "todo") : "off";
+    // ✅ len to, čo treba fotiť (žiadne sivé = nič nezobrazujeme)
+    if(t.needStand && t.standCode){
+      const done = isPhotoDoneToday(t.ap,"exact",t.standCode);
+      taskList.appendChild(makeTaskRow({
+        label:"Fotím stojan",
+        code:t.standCode,
+        done,
+        onClick: ()=>{
+          manualCode.value=t.standCode;
+          refreshCameraButton();
+          currentPhotoCode=t.standCode;
+          openCamera();
+        }
+      }));
+    }
 
-    taskList.appendChild(makeTaskRow({
-      label:"Fotím stojan",
-      code:t.standCode || "—",
-      state: stateStand,
-      onClick: ()=>{
-        manualCode.value = t.standCode || "";
-        refreshCameraButton();
-        currentPhotoCode = manualCode.value.trim();
-        openCamera();
-      }
-    }));
+    if(t.needB1 && t.b1Code){
+      const done = isPhotoDoneToday(t.ap,"exact",t.b1Code);
+      taskList.appendChild(makeTaskRow({
+        label:"Fotím B1",
+        code:t.b1Code,
+        done,
+        onClick: ()=>{
+          manualCode.value=t.b1Code;
+          refreshCameraButton();
+          currentPhotoCode=t.b1Code;
+          openCamera();
+        }
+      }));
+    }
 
-    const enabledB1 = t.needB1 && !!t.b1Code;
-    const doneB1 = enabledB1 ? isPhotoDoneToday(t.ap,"b1",t.standCode,t.b1Code,t.staticBase) : false;
-    const stateB1 = enabledB1 ? (doneB1 ? "done" : "todo") : "off";
+    if(t.needStatic && t.staticBase){
+      const done = isPhotoDoneToday(t.ap,"base",t.staticBase);
+      taskList.appendChild(makeStaticRow(t, done));
+    }
 
-    taskList.appendChild(makeTaskRow({
-      label:"Fotím B1",
-      code:t.b1Code || "—",
-      state: stateB1,
-      onClick: ()=>{
-        manualCode.value = t.b1Code || "";
-        refreshCameraButton();
-        currentPhotoCode = manualCode.value.trim();
-        openCamera();
-      }
-    }));
-
-    const enabledStatic = t.needStatic && !!t.staticBase;
-    const doneStatic = enabledStatic ? isPhotoDoneToday(t.ap,"static",t.standCode,t.b1Code,t.staticBase) : false;
-    const stateStatic = enabledStatic ? (doneStatic ? "done" : "todo") : "off";
-
-    taskList.appendChild(makeStaticRow(t, stateStatic));
-
+    // express blok len ak je niečo v AL (ale dobrovoľné)
     if(t.needExpress){
-      expressBlock.style.display = "block";
-      btnExpressToggle.textContent = expressSaved ? "Express uložený" : "Express som odovzdal";
+      expressBlock.style.display="block";
+      btnExpressToggle.textContent = expressSaved ? "Express uložený" : "Express";
       btnExpressToggle.style.background = expressSaved ? "var(--greenBg)" : "#e9e9e9";
       btnExpressToggle.style.color = expressSaved ? "var(--green)" : "#111";
     }else{
-      expressBlock.style.display = "none";
-      expressArea.style.display = "none";
-      expressTextEl.value = "";
-      expressSaved = false;
+      expressBlock.style.display="none";
+      expressArea.style.display="none";
+      expressExtra.value = "";
+      expressSaved=false;
+      expressSuggested=[];
+      expressPicked=[];
     }
 
     updateAllDoneState();
@@ -968,7 +930,7 @@
   // ===== Photo flow =====
   function openCamera(){
     if(!currentPhotoCode) return;
-    photoInput.value = "";
+    photoInput.value="";
     photoInput.click();
   }
 
@@ -988,21 +950,21 @@
     if(!f) return;
     lastBlob = f;
 
-    afterPhoto.style.display = "block";
-    tasksCard.style.display = "none";
+    afterPhoto.style.display="block";
+    tasksCard.style.display="none";
   });
 
   btnRetake.addEventListener('click', ()=>{
-    lastBlob = null;
-    afterPhoto.style.display = "none";
-    tasksCard.style.display = "block";
+    lastBlob=null;
+    afterPhoto.style.display="none";
+    tasksCard.style.display="block";
     openCamera();
   });
 
   btnBack.addEventListener('click', ()=>{
-    lastBlob = null;
-    afterPhoto.style.display = "none";
-    tasksCard.style.display = "block";
+    lastBlob=null;
+    afterPhoto.style.display="none";
+    tasksCard.style.display="block";
   });
 
   btnSavePhoto.addEventListener('click', ()=>{
@@ -1016,69 +978,67 @@
     downloadNow(lastBlob, filename);
 
     const ap = currentTasks.ap;
-    const row = currentTasks.row;
-    const posters = row ? getPostersFromRow(row) : [];
+    const posters = currentTasks.row ? getPostersFromRow(currentTasks.row) : [];
 
-    // ✅ poznámka ide do reportu (spolu s express textom ak existuje)
+    // poznámka (dole) + express info (ak uložený)
     const noteParts = [];
     const n = norm(noteText.value);
     if(n) noteParts.push(n);
-    const ex = norm(expressTextEl.value);
-    if(ex) noteParts.push("EXPRESS: " + ex);
+
+    if(expressSaved){
+      const picked = expressPicked.join(" ");
+      const extra = norm(expressExtra.value);
+      if(picked || extra){
+        let s = "EXPRESS: " + (picked || "");
+        if(extra) s += (picked ? " | " : " ") + extra;
+        noteParts.push(s.trim());
+      }
+    }
+
     const note = noteParts.join(" | ");
 
     addLogEntry(ap, currentPhotoCode, posters, note, filename);
 
-    if(normCode(currentPhotoCode) === normCode(currentTasks.standCode)) sessionDone.stand = true;
-    if(normCode(currentPhotoCode) === normCode(currentTasks.b1Code)) sessionDone.b1 = true;
-    if(stripSuffixABC(currentPhotoCode) === normCode(currentTasks.staticBase)) sessionDone.stat = true;
-
-    lastBlob = null;
-    afterPhoto.style.display = "none";
-    tasksCard.style.display = "block";
-
+    lastBlob=null;
+    afterPhoto.style.display="none";
+    tasksCard.style.display="block";
     renderTasks();
   });
 
   // ===== Express =====
   btnExpressToggle.addEventListener("click", ()=>{
-    expressArea.style.display = (expressArea.style.display==="block") ? "none" : "block";
-    if(expressArea.style.display==="block") expressTextEl.focus();
+    const show = (expressArea.style.display !== "block");
+    expressArea.style.display = show ? "block" : "none";
+    if(show){
+      renderExpressUI();
+    }
   });
 
   btnSaveExpress.addEventListener("click", ()=>{
+    expressPicked = readExpressPicked();
     expressSaved = true;
-    expressArea.style.display = "none";
+    expressArea.style.display="none";
     renderTasks();
   });
 
   // ===== Finish =====
   function missingList(){
-    const t = currentTasks;
-    const miss = [];
-
-    const doneStand = !t.needStand || isPhotoDoneToday(t.ap,"stand",t.standCode,t.b1Code,t.staticBase);
-    const doneB1 = !t.needB1 || isPhotoDoneToday(t.ap,"b1",t.standCode,t.b1Code,t.staticBase);
-    const doneStatic = !t.needStatic || isPhotoDoneToday(t.ap,"static",t.standCode,t.b1Code,t.staticBase);
-    const doneExpress = !t.needExpress || expressSaved;
-
-    if(!doneStand && t.needStand) miss.push("stojan");
-    if(!doneB1 && t.needB1) miss.push("B1");
-    if(!doneStatic && t.needStatic) miss.push("statický");
-    if(!doneExpress && t.needExpress) miss.push("express");
-
+    const t=currentTasks;
+    const miss=[];
+    if(t.needStand && t.standCode && !isPhotoDoneToday(t.ap,"exact",t.standCode)) miss.push("stojan");
+    if(t.needB1 && t.b1Code && !isPhotoDoneToday(t.ap,"exact",t.b1Code)) miss.push("B1");
+    if(t.needStatic && t.staticBase && !isPhotoDoneToday(t.ap,"base",t.staticBase)) miss.push("statický");
+    // express zámerne nerátame ako "chýba"
     return miss;
   }
 
   btnFinish.addEventListener("click", ()=>{
     if(!currentTasks) return;
-
     const miss = missingList();
-    if(miss.length === 0){
+    if(miss.length===0){
       resetToNew();
       return;
     }
-
     finishText.textContent = "Chýba: " + miss.join(", ");
     dlgFinish.showModal();
   });
@@ -1092,31 +1052,30 @@
   btnOkNext.addEventListener("click", resetToNew);
 
   function resetToNew(){
-    detailsVisible = false;
+    detailsVisible=false;
     showMainUi();
 
-    tasksCard.style.display = "none";
-    afterPhoto.style.display = "none";
-    taskList.innerHTML = "";
-    currentTasks = null;
-    currentPhotoCode = "";
-    lastBlob = null;
-    staticSuffix = "A";
+    tasksCard.style.display="none";
+    afterPhoto.style.display="none";
+    taskList.innerHTML="";
+    currentTasks=null;
+    currentPhotoCode="";
+    lastBlob=null;
 
-    expressSaved = false;
-    expressTextEl.value = "";
-    expressArea.style.display = "none";
-    expressBlock.style.display = "none";
-    btnExpressToggle.textContent = "Express som odovzdal";
+    expressSaved=false;
+    expressSuggested=[];
+    expressPicked=[];
+    expressExtra.value="";
+    expressArea.style.display="none";
+    expressBlock.style.display="none";
 
-    noteText.value = "";
+    noteText.value="";
 
-    resetSessionFlags();
+    miniInfoWrap.style.display="none";
+    noteCard.style.display="none";
 
-    miniInfoWrap.style.display = "none";
-
-    apInput.value = "";
-    manualCode.value = "";
+    apInput.value="";
+    manualCode.value="";
     refreshCameraButton();
     apInput.focus();
   }
@@ -1128,31 +1087,33 @@
 
     const t = computeTasks(ap);
     if(!t){
-      tasksCard.style.display = "none";
-      miniInfoWrap.style.display = "none";
-      detailsVisible = false;
+      tasksCard.style.display="none";
+      miniInfoWrap.style.display="none";
+      noteCard.style.display="none";
+      detailsVisible=false;
       showMainUi();
       return;
     }
 
     currentTasks = t;
-    currentPhotoCode = "";
-    lastBlob = null;
-    staticSuffix = "A";
-    expressSaved = false;
-    expressTextEl.value = "";
-    expressArea.style.display = "none";
-    btnExpressToggle.textContent = "Express som odovzdal";
-    noteText.value = "";
+    currentTasks._suffix = "A";
 
-    resetSessionFlags();
+    currentPhotoCode="";
+    lastBlob=null;
+
+    expressSaved=false;
+    expressSuggested = t.suggestedExpress || [];
+    expressPicked=[];
+    expressExtra.value="";
+    expressArea.style.display="none";
+    btnExpressToggle.textContent="Express";
 
     renderMiniInfo(t.row);
 
-    tasksCard.style.display = "block";
+    tasksCard.style.display="block";
     renderTasks();
 
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top:0, behavior:"smooth" });
   });
 
   apInput.addEventListener("keydown", (e)=>{ if(e.key==="Enter") btnLoad.click(); });
@@ -1163,13 +1124,13 @@
   btnCamera.addEventListener("click", ()=>{
     const c = manualCode.value.trim();
     if(!c) return;
-    currentPhotoCode = c;
+    currentPhotoCode=c;
     openCamera();
   });
 
   refreshCameraButton();
 
-  // ===== Bottom panels toggle =====
+  // ===== Bottom panels =====
   btnMiniScan.addEventListener("click", ()=>{
     panelScan.style.display = (panelScan.style.display==="block") ? "none" : "block";
     if(panelScan.style.display==="block") startScan();
@@ -1181,23 +1142,16 @@
   // ===== Scan =====
   let stream=null, scanning=false;
 
-  function stopStream(){
-    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-  }
-  function stopScan(){
-    scanning=false;
-    stopStream();
-  }
+  function stopStream(){ if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } }
+  function stopScan(){ scanning=false; stopStream(); }
 
   async function startScan(){
-    if (!('BarcodeDetector' in window)) return;
+    if(!('BarcodeDetector' in window)) return;
     if(scanning) return;
 
     scanning=true;
     try{
-      stream = await navigator.mediaDevices.getUserMedia({
-        video:{ facingMode:{ ideal:"environment" } }, audio:false
-      });
+      stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:"environment" } }, audio:false });
       video.srcObject = stream;
       await video.play();
 
@@ -1254,8 +1208,8 @@
 
   // ===== Init =====
   repDate.value = (new Date()).toISOString().slice(0,10);
-  repName.value = localStorage.getItem("ids_rep_name_v14") || "";
-  repName.addEventListener('change', ()=> localStorage.setItem("ids_rep_name_v14", repName.value.trim()));
+  repName.value = localStorage.getItem(REP_KEY) || "";
+  repName.addEventListener('change', ()=> localStorage.setItem(REP_KEY, repName.value.trim()));
 
   loadDbXlsx();
 </script>
