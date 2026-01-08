@@ -19,18 +19,14 @@
     .icon{font-size:34px;line-height:1;color:#111}
     .iconBtn:active{transform:scale(.99)}
     .iconBtn:disabled{opacity:.35}
-    .btn{
-      padding:14px 14px;border-radius:16px;border:2px solid #111;background:#fff;font-weight:900;
-      width:100%;
-    }
+    .btn{padding:14px 14px;border-radius:16px;border:2px solid #111;background:#fff;font-weight:900;width:100%}
     .btn.primary{background:#111;color:#fff}
     video,img{width:100%;border-radius:16px;border:1px solid #eee;background:#000;margin-top:12px}
     dialog{border:none;border-radius:16px;padding:14px;max-width:420px;width:92vw}
     dialog::backdrop{background:rgba(0,0,0,.45)}
     input{width:100%;padding:12px 12px;border-radius:14px;border:1px solid #ccc;font-size:16px}
     .tiny{font-size:12px;color:#666;margin-top:8px}
-    .posters{margin-top:10px;padding:10px 12px;border:1px dashed #bbb;border-radius:14px}
-    .posters b{display:block;margin-bottom:6px}
+    .card{border:1px solid #ddd;border-radius:16px;padding:12px;margin-top:12px}
     .pill{display:inline-block;border:1px solid #111;border-radius:999px;padding:6px 10px;margin:4px 6px 0 0;font-weight:900}
   </style>
 </head>
@@ -38,42 +34,28 @@
 
   <div class="top">
     <div>Kód: <span id="codeOut" class="badge">—</span></div>
-    <div id="dbOut" class="badge">DB: —</div>
+    <div id="dbOut" class="badge">DB: …</div>
   </div>
 
+  <!-- 3 ikonky = fotoworkflow -->
   <div class="grid">
     <button id="btnScan" class="iconBtn">
-      <div class="icon">▣</div>
-      <div>Skenovať</div>
+      <div class="icon">▣</div><div>Skenovať</div>
     </button>
 
     <button id="btnManual" class="iconBtn">
-      <div class="icon">⌨</div>
-      <div>Zadať</div>
+      <div class="icon">⌨</div><div>Zadať</div>
     </button>
 
     <button id="btnPhoto" class="iconBtn" disabled>
-      <div class="icon">◉</div>
-      <div>Foto</div>
+      <div class="icon">◉</div><div>Foto</div>
     </button>
-  </div>
-
-  <div style="margin-top:12px">
-    <button id="btnDb" class="btn">Nahrať DB (Excel)</button>
-    <input id="dbInput" type="file" accept=".xlsx,.xls" style="display:none" />
-  </div>
-
-  <div id="postersBox" class="posters" style="display:none">
-    <b>Plagáty (AG–AM):</b>
-    <div id="postersList"></div>
   </div>
 
   <div id="scanWrap" style="display:none">
     <video id="video" playsinline></video>
     <canvas id="canvas" style="display:none"></canvas>
-    <div style="margin-top:10px">
-      <button id="btnStop" class="btn">Stop</button>
-    </div>
+    <div style="margin-top:10px"><button id="btnStop" class="btn">Stop</button></div>
   </div>
 
   <img id="preview" style="display:none" alt="Náhľad" />
@@ -89,7 +71,7 @@
   <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none" />
 
   <dialog id="dlg">
-    <div style="font-weight:900;margin-bottom:10px">Zadať kód</div>
+    <div style="font-weight:900;margin-bottom:10px">Zadať kód (pre fotenie)</div>
     <input id="manualText" placeholder="napr. 8544 alebo ABC-8544" />
     <div style="margin-top:10px">
       <button id="dlgOk" class="btn primary">OK</button>
@@ -99,11 +81,19 @@
     <div class="tiny">Tip: môže byť aj text.</div>
   </dialog>
 
-  <!-- Excel parser (SheetJS) -->
+  <!-- Samostatná časť: Zistiť plagáty -->
+  <div class="card">
+    <div style="font-weight:900;margin-bottom:8px">Zistiť plagáty (AG–AM)</div>
+    <input id="lookupCode" placeholder="Kód plochy (AP) – sem zadaj" />
+    <div style="height:10px"></div>
+    <button id="btnLookup" class="btn">Zobraziť plagáty</button>
+    <div id="posters" style="margin-top:10px"></div>
+  </div>
+
+  <!-- Excel parser -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <script>
-  // PWA cache
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
   }
@@ -114,12 +104,6 @@
   const btnScan = document.getElementById('btnScan');
   const btnManual = document.getElementById('btnManual');
   const btnPhoto = document.getElementById('btnPhoto');
-
-  const btnDb = document.getElementById('btnDb');
-  const dbInput = document.getElementById('dbInput');
-
-  const postersBox = document.getElementById('postersBox');
-  const postersList = document.getElementById('postersList');
 
   const scanWrap = document.getElementById('scanWrap');
   const video = document.getElementById('video');
@@ -139,27 +123,26 @@
   const dlgOk = document.getElementById('dlgOk');
   const dlgCancel = document.getElementById('dlgCancel');
 
+  const lookupCode = document.getElementById('lookupCode');
+  const btnLookup = document.getElementById('btnLookup');
+  const postersEl = document.getElementById('posters');
+
   let currentCode = "";
   let stream = null;
   let scanning = false;
   let lastBlob = null;
 
-  // ===== Excel DB =====
-  // Budeme hľadať podľa stĺpca AP (kód plochy)
-  // a zobraziť AG..AM
-  let dbRows = null;   // 2D array (sheet_to_json header:1)
-  let dbName = "";
-
+  // ===== DB =====
+  let dbRows = null; // 2D array
   function colToIndex(letter){
-    // A->0, Z->25, AA->26...
     let s = String(letter).toUpperCase().replace(/[^A-Z]/g,"");
     let n = 0;
     for (let i=0;i<s.length;i++) n = n*26 + (s.charCodeAt(i)-64);
     return n-1;
   }
-  const IDX_AP = colToIndex("AP");         // 41
-  const IDX_AG = colToIndex("AG");         // 32
-  const IDX_AM = colToIndex("AM");         // 38
+  const IDX_AP = colToIndex("AP");
+  const IDX_AG = colToIndex("AG");
+  const IDX_AM = colToIndex("AM");
 
   function safeName(s){
     return String(s || "").trim().replace(/[\\/:*?"<>|]+/g, "_");
@@ -168,9 +151,24 @@
     currentCode = String(v || "").trim();
     codeOut.textContent = currentCode || "—";
     btnPhoto.disabled = !currentCode;
-    renderPostersForCode();
   }
 
+  async function loadDbXlsx(){
+    try{
+      const res = await fetch("./db.xlsx", { cache: "no-cache" });
+      if(!res.ok) throw new Error("db.xlsx not found");
+      const buf = await res.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      dbRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+      dbOut.textContent = "DB: OK";
+    }catch(e){
+      dbRows = null;
+      dbOut.textContent = "DB: —";
+    }
+  }
+
+  // ===== Scan =====
   function stopStream(){
     if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
   }
@@ -179,7 +177,6 @@
     scanWrap.style.display = "none";
     stopStream();
   }
-
   async function startScan(){
     if (!('BarcodeDetector' in window)) {
       dlg.showModal();
@@ -250,58 +247,49 @@
     preview.style.display = "none";
     preview.src = "";
     afterPhoto.style.display = "none";
-    // kód necháme, aby si videl čo si fotil – ale ty chceš nové skenovanie cez tlačidlo
-    // takže ho vymažeme:
     setCode("");
   }
 
-  function renderPostersForCode(){
-    if(!dbRows || !currentCode){
-      postersBox.style.display = "none";
-      postersList.innerHTML = "";
+  // ===== Lookup posters =====
+  function showPostersFor(apCode){
+    postersEl.innerHTML = "";
+    if(!dbRows){
+      postersEl.innerHTML = "<span class='pill'>DB nie je načítaná</span>";
+      return;
+    }
+    const wanted = String(apCode || "").trim();
+    if(!wanted){
+      postersEl.innerHTML = "<span class='pill'>Zadaj kód</span>";
       return;
     }
 
-    const wanted = currentCode.trim();
     let found = null;
-
-    // nájdeme riadok, kde AP = kód (porovnávame ako text)
-    for (let r=0; r<dbRows.length; r++){
+    for(let r=0;r<dbRows.length;r++){
       const row = dbRows[r];
       if(!row) continue;
       const ap = String(row[IDX_AP] ?? "").trim();
-      if(ap === wanted){
-        found = row;
-        break;
-      }
+      if(ap === wanted){ found = row; break; }
     }
-
     if(!found){
-      postersBox.style.display = "block";
-      postersList.innerHTML = "<span class='pill'>nenájdené</span>";
+      postersEl.innerHTML = "<span class='pill'>nenájdené</span>";
       return;
     }
 
-    // AG..AM
     const set = new Set();
     for(let i=IDX_AG;i<=IDX_AM;i++){
       const v = String(found[i] ?? "").trim();
       if(!v) continue;
-      // ak je v bunke viac vecí, rozsekneme na medzery/čiarky/;/
       v.split(/[\s,;\/]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>set.add(x));
     }
-
-    postersBox.style.display = "block";
     if(set.size === 0){
-      postersList.innerHTML = "<span class='pill'>—</span>";
-    } else {
-      postersList.innerHTML = Array.from(set).map(x => `<span class="pill">${x}</span>`).join("");
+      postersEl.innerHTML = "<span class='pill'>—</span>";
+      return;
     }
+    postersEl.innerHTML = Array.from(set).map(x => `<span class="pill">${x}</span>`).join("");
   }
 
   // ===== Events =====
   btnScan.addEventListener('click', startScan);
-
   btnStop.addEventListener('click', stopScan);
 
   btnManual.addEventListener('click', ()=>{
@@ -348,35 +336,12 @@
     startScan();
   });
 
-  // DB upload
-  btnDb.addEventListener('click', ()=> dbInput.click());
-
-  dbInput.addEventListener('change', async ()=>{
-    const file = dbInput.files && dbInput.files[0];
-    if(!file) return;
-
-    try{
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array" });
-      const sheetName = wb.SheetNames[0];
-      const ws = wb.Sheets[sheetName];
-
-      dbRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
-      dbName = file.name;
-
-      dbOut.textContent = "DB: OK";
-      renderPostersForCode();
-    }catch(e){
-      dbRows = null;
-      dbName = "";
-      dbOut.textContent = "DB: ERR";
-      postersBox.style.display = "none";
-    }
-  });
+  btnLookup.addEventListener('click', ()=> showPostersFor(lookupCode.value));
+  lookupCode.addEventListener('keydown', (e)=>{ if(e.key==="Enter") btnLookup.click(); });
 
   // init
   setCode("");
-  dbOut.textContent = "DB: —";
+  loadDbXlsx();
 </script>
 </body>
 </html>
