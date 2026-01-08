@@ -34,7 +34,6 @@
       max-width:720px;
     }
 
-    /* jemne oblé */
     *{ border-radius:12px; }
 
     .card{
@@ -143,29 +142,20 @@
 
     .task:active{ transform:scale(.995); }
 
-    /* Static custom layout (no overlap) */
-    .staticTop{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-    }
-
     /* Suffix buttons */
     .suffixWrap{
       display:flex;
-      gap:8px;
-      flex-wrap:nowrap;
+      gap:10px;
+      flex-wrap:wrap;          /* ✅ nikdy mimo obrazovku */
       align-items:center;
-      justify-content:flex-end;
-      flex:0 0 auto;
+      justify-content:flex-start;
     }
     .suffixBtn{
       border:1px solid var(--line);
       background:#fff;
-      padding:10px 12px;
+      padding:12px 16px;
       font-weight:900;
-      min-width:44px;
+      min-width:64px;
       text-align:center;
       cursor:pointer;
       user-select:none;
@@ -231,8 +221,8 @@
     th{text-align:left;font-size:11px;color:#666}
 
     @media (max-width: 380px){
-      .suffixBtn{ min-width:40px; padding:9px 10px; }
       .task{ padding:12px; }
+      .suffixBtn{ min-width:58px; padding:11px 14px; }
     }
   </style>
 </head>
@@ -240,9 +230,18 @@
 
   <!-- TOP -->
   <div class="card">
+    <!-- AP -->
     <div class="row">
       <input id="apInput" placeholder="Kód plochy" />
       <button id="btnLoad" class="btn gray" style="min-width:110px">Načítať</button>
+    </div>
+
+    <div class="sp"></div>
+
+    <!-- MANUAL / SCAN CODE + CAMERA -->
+    <div class="row">
+      <input id="manualCode" placeholder="Kód (sken / ručne)" />
+      <button id="btnCamera" class="btn gray" style="min-width:110px">Foto</button>
     </div>
   </div>
 
@@ -336,6 +335,9 @@
   const apInput = document.getElementById('apInput');
   const btnLoad = document.getElementById('btnLoad');
 
+  const manualCode = document.getElementById('manualCode');
+  const btnCamera = document.getElementById('btnCamera');
+
   const tasksCard = document.getElementById('tasksCard');
   const taskList = document.getElementById('taskList');
 
@@ -406,6 +408,11 @@
     return String(ts||"").split("T")[1]?.slice(0,8) || "";
   }
 
+  function refreshCameraButton(){
+    const ok = manualCode.value.trim().length > 0;
+    btnCamera.className = ok ? "btn red" : "btn gray";
+  }
+
   // ===== DB index =====
   let dbRows=null, idx=null;
   const IDX_AP = colToIndex(COL_MAIN_AP);
@@ -458,23 +465,6 @@
     return false;
   }
 
-  function getRowForPhotoCode(photoCode){
-    if(!idx) return null;
-    const c = normCode(photoCode);
-    if(!c) return null;
-    if(idx.byAP.has(c)) return { ap:c, row:idx.byAP.get(c) };
-    if(idx.byAny.has(c)){
-      const row = idx.byAny.get(c);
-      return { ap:normCode(row[IDX_AP]), row };
-    }
-    const base = stripSuffixABC(c);
-    if(base && idx.byAny.has(base)){
-      const row = idx.byAny.get(base);
-      return { ap:normCode(row[IDX_AP]), row };
-    }
-    return null;
-  }
-
   function getPostersFromRow(row){
     if(!row) return [];
     const from = colToIndex("AG");
@@ -493,19 +483,18 @@
   let currentPhotoCode="";
   let lastBlob=null;
 
-  let staticSuffix="X";
+  let staticSuffix="A"; // default, but card click = bez suffixu
   let expressSaved=false;
 
-  // ✅ NOVÉ: okamžitá “session done” pamäť (fix B1/stand/statický)
+  // okamžitá pamäť (aby sa úloha hneď vyfarbila)
   let sessionDone = { stand:false, b1:false, stat:false };
-
   function resetSessionFlags(){
     sessionDone = { stand:false, b1:false, stat:false };
   }
 
   // ===== Log/report =====
-  const LOG_KEY="ids_foto_log_v9";
-  const REP_KEY="ids_rep_name_v9";
+  const LOG_KEY="ids_foto_log_v10";
+  const REP_KEY="ids_rep_name_v10";
 
   function loadLog(){
     try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); }
@@ -588,7 +577,7 @@
 
   // ===== Task completion =====
   function isPhotoDoneToday(ap, type, standCode, b1Code, staticBase){
-    // ✅ najprv session pamäť (okamžite po uložení)
+    // najprv session (okamžité)
     if(type==="stand" && sessionDone.stand) return true;
     if(type==="b1" && sessionDone.b1) return true;
     if(type==="static" && sessionDone.stat) return true;
@@ -646,6 +635,7 @@
     return div;
   }
 
+  // ✅ Statický: karta = bez suffixu, tlačidlá = A/B/C
   function makeStaticRow(t, state){
     const div = document.createElement("div");
     div.className = "task " + state;
@@ -653,15 +643,17 @@
     const left = document.createElement("div");
     left.className = "left";
 
-    const top = document.createElement("div");
-    top.className = "staticTop";
-
     const title = document.createElement("div");
     title.className = "title";
     title.textContent = "Fotím statický plagát";
 
+    const codeEl = document.createElement("div");
+    codeEl.className = "code";
+    codeEl.textContent = t.staticBase || "—";
+
     const suffixWrap = document.createElement("div");
     suffixWrap.className = "suffixWrap";
+    suffixWrap.style.marginTop = "8px";
 
     const mkSuffix = (s)=>{
       const b = document.createElement("div");
@@ -673,30 +665,36 @@
         ev.stopPropagation();
         staticSuffix = s;
         renderTasks();
+
+        const base = t.staticBase || "";
+        if(!base) return;
+        manualCode.value = base + staticSuffix;
+        refreshCameraButton();
+        currentPhotoCode = manualCode.value.trim();
+        openCamera();
       });
       return b;
     };
-    ["X","A","B","C"].forEach(s=> suffixWrap.appendChild(mkSuffix(s)));
 
-    top.appendChild(title);
-    top.appendChild(suffixWrap);
+    ["A","B","C"].forEach(s=> suffixWrap.appendChild(mkSuffix(s)));
 
-    const codeEl = document.createElement("div");
-    codeEl.className = "code";
-    codeEl.textContent = t.staticBase || "—";
-
-    left.appendChild(top);
+    left.appendChild(title);
     left.appendChild(codeEl);
+    left.appendChild(suffixWrap);
     div.appendChild(left);
 
+    // click na kartu = bez suffixu
     if(state !== "off"){
       div.addEventListener("click", ()=>{
         const base = t.staticBase || "";
         if(!base) return;
-        currentPhotoCode = (staticSuffix==="X") ? base : (base + staticSuffix);
+        manualCode.value = base;
+        refreshCameraButton();
+        currentPhotoCode = base;
         openCamera();
       });
     }
+
     return div;
   }
 
@@ -734,7 +732,9 @@
       code:t.standCode || "—",
       state: stateStand,
       onClick: ()=>{
-        currentPhotoCode = t.standCode;
+        manualCode.value = t.standCode || "";
+        refreshCameraButton();
+        currentPhotoCode = manualCode.value.trim();
         openCamera();
       }
     }));
@@ -749,12 +749,14 @@
       code:t.b1Code || "—",
       state: stateB1,
       onClick: ()=>{
-        currentPhotoCode = t.b1Code;
+        manualCode.value = t.b1Code || "";
+        refreshCameraButton();
+        currentPhotoCode = manualCode.value.trim();
         openCamera();
       }
     }));
 
-    // STATIC (custom, no overlap)
+    // STATIC
     const enabledStatic = t.needStatic && !!t.staticBase;
     const doneStatic = enabledStatic ? isPhotoDoneToday(t.ap,"static",t.standCode,t.b1Code,t.staticBase) : false;
     const stateStatic = enabledStatic ? (doneStatic ? "done" : "todo") : "off";
@@ -823,21 +825,22 @@
   });
 
   btnSavePhoto.addEventListener('click', ()=>{
-    if(!lastBlob || !currentPhotoCode || !currentTasks) return;
+    if(!lastBlob || !currentTasks) return;
 
+    const code = manualCode.value.trim();
+    if(!code) return;
+
+    currentPhotoCode = code;
     const filename = safeName(currentPhotoCode) + ".jpg";
     downloadNow(lastBlob, filename);
 
-    // AP + row z tasks (stabilné)
     const ap = currentTasks.ap;
     const row = currentTasks.row;
     const posters = row ? getPostersFromRow(row) : [];
-
     const note = (norm(expressTextEl.value)) ? ("EXPRESS: " + norm(expressTextEl.value)) : "";
 
     addLogEntry(ap, currentPhotoCode, posters, note, filename);
 
-    // ✅ Session done flags (fix “niekedy nezozelenie”)
     if(normCode(currentPhotoCode) === normCode(currentTasks.standCode)) sessionDone.stand = true;
     if(normCode(currentPhotoCode) === normCode(currentTasks.b1Code)) sessionDone.b1 = true;
     if(stripSuffixABC(currentPhotoCode) === normCode(currentTasks.staticBase)) sessionDone.stat = true;
@@ -858,7 +861,7 @@
   btnSaveExpress.addEventListener("click", ()=>{
     expressSaved = true;
     expressArea.style.display = "none";
-    renderTasks(); // aby sa prefarbil blok a finish zareagoval
+    renderTasks();
   });
 
   // ===== Finish =====
@@ -905,7 +908,7 @@
     currentTasks = null;
     currentPhotoCode = "";
     lastBlob = null;
-    staticSuffix = "X";
+    staticSuffix = "A";
 
     expressSaved = false;
     expressTextEl.value = "";
@@ -917,6 +920,8 @@
     resetSessionFlags();
 
     apInput.value = "";
+    manualCode.value = "";
+    refreshCameraButton();
     apInput.focus();
   }
 
@@ -934,7 +939,7 @@
     currentTasks = t;
     currentPhotoCode = "";
     lastBlob = null;
-    staticSuffix = "X";
+    staticSuffix = "A";
     expressSaved = false;
     expressTextEl.value = "";
     expressArea.style.display = "none";
@@ -948,6 +953,18 @@
   });
 
   apInput.addEventListener("keydown", (e)=>{ if(e.key==="Enter") btnLoad.click(); });
+
+  // ===== Manual camera button =====
+  manualCode.addEventListener("input", refreshCameraButton);
+
+  btnCamera.addEventListener("click", ()=>{
+    const c = manualCode.value.trim();
+    if(!c) return;
+    currentPhotoCode = c;
+    openCamera();
+  });
+
+  refreshCameraButton();
 
   // ===== Bottom panels toggle =====
   btnMiniScan.addEventListener("click", ()=>{
@@ -996,10 +1013,11 @@
           if(codes && codes.length){
             const raw = (codes[0].rawValue || "").trim();
             if(raw){
-              currentPhotoCode = raw;
+              manualCode.value = raw;
+              refreshCameraButton();
               stopScan();
               panelScan.style.display="none";
-              openCamera();
+              btnCamera.click(); // rovno foťák
               return;
             }
           }
