@@ -34,7 +34,7 @@
       max-width:720px;
     }
 
-    /* všetko jemne oblé */
+    /* jemne oblé */
     *{ border-radius:12px; }
 
     .card{
@@ -104,7 +104,7 @@
       border:1px solid var(--line);
       padding:14px 14px;
       display:flex;
-      align-items:center;
+      align-items:stretch;
       justify-content:space-between;
       gap:10px;
       user-select:none;
@@ -113,8 +113,9 @@
     .task .left{
       display:flex;
       flex-direction:column;
-      gap:6px;
+      gap:8px;
       min-width:0;
+      flex:1 1 auto;
     }
     .task .title{
       font-weight:900;
@@ -122,13 +123,14 @@
       line-height:1.1;
     }
     .task .code{
-      font-weight:800;
+      font-weight:900;
       color:#222;
       background:#fff;
       border:1px solid var(--line);
-      padding:8px 10px;
+      padding:10px 12px;
       display:inline-block;
       border-radius:12px;
+      width:max-content;
       max-width:100%;
       overflow:hidden;
       text-overflow:ellipsis;
@@ -141,12 +143,22 @@
 
     .task:active{ transform:scale(.995); }
 
-    /* Static suffix buttons */
+    /* Static custom layout (no overlap) */
+    .staticTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    /* Suffix buttons */
     .suffixWrap{
       display:flex;
       gap:8px;
       flex-wrap:nowrap;
       align-items:center;
+      justify-content:flex-end;
+      flex:0 0 auto;
     }
     .suffixBtn{
       border:1px solid var(--line);
@@ -217,11 +229,16 @@
     table{width:100%;border-collapse:collapse;margin-top:10px}
     th,td{border-bottom:1px solid #eee;padding:8px 6px;font-size:12.5px;vertical-align:top}
     th{text-align:left;font-size:11px;color:#666}
+
+    @media (max-width: 380px){
+      .suffixBtn{ min-width:40px; padding:9px 10px; }
+      .task{ padding:12px; }
+    }
   </style>
 </head>
 <body>
 
-  <!-- TOP: iba kód plochy + načítať -->
+  <!-- TOP -->
   <div class="card">
     <div class="row">
       <input id="apInput" placeholder="Kód plochy" />
@@ -237,7 +254,7 @@
 
     <div class="sp2"></div>
 
-    <!-- EXPRESS (len ak treba) -->
+    <!-- EXPRESS -->
     <div id="expressBlock" class="subcard">
       <button id="btnExpressToggle" class="btn gray" style="width:100%">Express som odovzdal</button>
       <div id="expressArea" style="display:none;margin-top:10px">
@@ -253,7 +270,7 @@
     <button id="btnFinish" class="btn red" style="width:100%">Ukončiť</button>
   </div>
 
-  <!-- AFTER PHOTO: len veľké Uložiť -->
+  <!-- AFTER PHOTO -->
   <div id="afterPhoto" class="card">
     <button id="btnSavePhoto" class="btn yellow bigSave">Uložiť</button>
     <div class="sp"></div>
@@ -265,7 +282,7 @@
 
   <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none" />
 
-  <!-- Bottom icons (hidden panels) -->
+  <!-- Bottom icons -->
   <div class="bottomBar">
     <div id="btnMiniScan" class="miniIcon"><span>▣</span><div>Sken</div></div>
     <div id="btnMiniReport" class="miniIcon"><span>≡</span><div>Report</div></div>
@@ -309,7 +326,7 @@
 <script>
   // ===== DB config =====
   const COL_MAIN_AP = "AP";
-  const CODE_COLUMNS = ["B","C","AO"]; // stojan, B1, statický base
+  const CODE_COLUMNS = ["B","C","AO"];
   const COL_STAND_FROM = "AG", COL_STAND_TO = "AJ";
   const COL_B1 = "AK";
   const COL_STATIC = "AM";
@@ -460,7 +477,6 @@
 
   function getPostersFromRow(row){
     if(!row) return [];
-    // necháme kvôli reportu: AG..AM
     const from = colToIndex("AG");
     const to   = colToIndex("AM");
     const set = new Set();
@@ -477,32 +493,19 @@
   let currentPhotoCode="";
   let lastBlob=null;
 
-  let staticSuffix="X"; // X/A/B/C
+  let staticSuffix="X";
   let expressSaved=false;
 
-  function resetSessionUI(){
-    currentTasks=null;
-    currentPhotoCode="";
-    lastBlob=null;
-    staticSuffix="X";
-    expressSaved=false;
+  // ✅ NOVÉ: okamžitá “session done” pamäť (fix B1/stand/statický)
+  let sessionDone = { stand:false, b1:false, stat:false };
 
-    apInput.value = "";
-    taskList.innerHTML = "";
-    tasksCard.style.display = "none";
-    afterPhoto.style.display = "none";
-
-    expressBlock.style.display = "none";
-    expressArea.style.display = "none";
-    expressTextEl.value = "";
-
-    btnFinish.textContent = "Ukončiť";
-    btnFinish.className = "btn red";
+  function resetSessionFlags(){
+    sessionDone = { stand:false, b1:false, stat:false };
   }
 
   // ===== Log/report =====
-  const LOG_KEY="ids_foto_log_v8";
-  const REP_KEY="ids_rep_name_v8";
+  const LOG_KEY="ids_foto_log_v9";
+  const REP_KEY="ids_rep_name_v9";
 
   function loadLog(){
     try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); }
@@ -585,6 +588,11 @@
 
   // ===== Task completion =====
   function isPhotoDoneToday(ap, type, standCode, b1Code, staticBase){
+    // ✅ najprv session pamäť (okamžite po uložení)
+    if(type==="stand" && sessionDone.stand) return true;
+    if(type==="b1" && sessionDone.b1) return true;
+    if(type==="static" && sessionDone.stat) return true;
+
     const day = repDate.value || isoDate(new Date());
     const log = loadLog().filter(x => x.day === day && String(x.ap||"") === ap);
 
@@ -613,7 +621,7 @@
     return { ap: apN, row, needStand, needB1, needStatic, standCode, b1Code, staticBase, needExpress };
   }
 
-  function makeTaskRow({label, code, state, onClick, rightEl=null}){
+  function makeTaskRow({label, code, state, onClick}){
     const div = document.createElement("div");
     div.className = "task " + state;
 
@@ -630,13 +638,64 @@
 
     left.appendChild(title);
     left.appendChild(codeEl);
-
     div.appendChild(left);
-
-    if(rightEl) div.appendChild(rightEl);
 
     if(state !== "off" && typeof onClick === "function"){
       div.addEventListener("click", onClick);
+    }
+    return div;
+  }
+
+  function makeStaticRow(t, state){
+    const div = document.createElement("div");
+    div.className = "task " + state;
+
+    const left = document.createElement("div");
+    left.className = "left";
+
+    const top = document.createElement("div");
+    top.className = "staticTop";
+
+    const title = document.createElement("div");
+    title.className = "title";
+    title.textContent = "Fotím statický plagát";
+
+    const suffixWrap = document.createElement("div");
+    suffixWrap.className = "suffixWrap";
+
+    const mkSuffix = (s)=>{
+      const b = document.createElement("div");
+      b.className = "suffixBtn";
+      b.textContent = s;
+      if(staticSuffix===s) b.classList.add("active");
+
+      b.addEventListener("click", (ev)=>{
+        ev.stopPropagation();
+        staticSuffix = s;
+        renderTasks();
+      });
+      return b;
+    };
+    ["X","A","B","C"].forEach(s=> suffixWrap.appendChild(mkSuffix(s)));
+
+    top.appendChild(title);
+    top.appendChild(suffixWrap);
+
+    const codeEl = document.createElement("div");
+    codeEl.className = "code";
+    codeEl.textContent = t.staticBase || "—";
+
+    left.appendChild(top);
+    left.appendChild(codeEl);
+    div.appendChild(left);
+
+    if(state !== "off"){
+      div.addEventListener("click", ()=>{
+        const base = t.staticBase || "";
+        if(!base) return;
+        currentPhotoCode = (staticSuffix==="X") ? base : (base + staticSuffix);
+        openCamera();
+      });
     }
     return div;
   }
@@ -648,8 +707,7 @@
     const doneStand = !t.needStand || isPhotoDoneToday(t.ap,"stand",t.standCode,t.b1Code,t.staticBase);
     const doneB1 = !t.needB1 || isPhotoDoneToday(t.ap,"b1",t.standCode,t.b1Code,t.staticBase);
     const doneStatic = !t.needStatic || isPhotoDoneToday(t.ap,"static",t.standCode,t.b1Code,t.staticBase);
-
-    const doneExpress = !t.needExpress || expressSaved; // Express riešime manuálne v session
+    const doneExpress = !t.needExpress || expressSaved;
 
     const allDone = doneStand && doneB1 && doneStatic && doneExpress;
 
@@ -696,47 +754,24 @@
       }
     }));
 
-    // STATIC with suffix buttons
+    // STATIC (custom, no overlap)
     const enabledStatic = t.needStatic && !!t.staticBase;
     const doneStatic = enabledStatic ? isPhotoDoneToday(t.ap,"static",t.standCode,t.b1Code,t.staticBase) : false;
     const stateStatic = enabledStatic ? (doneStatic ? "done" : "todo") : "off";
 
-    const right = document.createElement("div");
-    right.className = "suffixWrap";
-
-    const mkSuffix = (s)=>{
-      const b = document.createElement("div");
-      b.className = "suffixBtn";
-      b.textContent = s;
-      if(staticSuffix===s) b.classList.add("active");
-
-      b.addEventListener("click", (ev)=>{
-        ev.stopPropagation();
-        staticSuffix = s;
-        // re-render only this row by rerender tasks (cheap)
-        renderTasks();
-      });
-      return b;
-    };
-
-    ["X","A","B","C"].forEach(s=> right.appendChild(mkSuffix(s)));
-
-    taskList.appendChild(makeTaskRow({
-      label:"Fotím statický plagát",
-      code: t.staticBase || "—",
-      state: stateStatic,
-      rightEl: right,
-      onClick: ()=>{
-        const base = t.staticBase || "";
-        if(!base) return;
-        currentPhotoCode = (staticSuffix==="X") ? base : (base + staticSuffix);
-        openCamera();
-      }
-    }));
+    taskList.appendChild(makeStaticRow(t, stateStatic));
 
     // EXPRESS block
     if(t.needExpress){
       expressBlock.style.display = "block";
+      btnExpressToggle.textContent = expressSaved ? "Express uložený" : "Express som odovzdal";
+      if(expressSaved){
+        btnExpressToggle.style.background = "var(--greenBg)";
+        btnExpressToggle.style.border = "1px solid var(--green)";
+        btnExpressToggle.style.color = "var(--green)";
+      }else{
+        btnExpressToggle.removeAttribute("style");
+      }
     }else{
       expressBlock.style.display = "none";
       expressArea.style.display = "none";
@@ -770,7 +805,6 @@
     if(!f) return;
     lastBlob = f;
 
-    // show afterPhoto, hide tasks temporarily
     afterPhoto.style.display = "block";
     tasksCard.style.display = "none";
   });
@@ -789,21 +823,25 @@
   });
 
   btnSavePhoto.addEventListener('click', ()=>{
-    if(!lastBlob || !currentPhotoCode) return;
+    if(!lastBlob || !currentPhotoCode || !currentTasks) return;
 
     const filename = safeName(currentPhotoCode) + ".jpg";
     downloadNow(lastBlob, filename);
 
-    const resolved = getRowForPhotoCode(currentPhotoCode);
-    const ap = resolved ? resolved.ap : (currentTasks ? currentTasks.ap : "");
-    const row = resolved ? resolved.row : (currentTasks ? currentTasks.row : null);
+    // AP + row z tasks (stabilné)
+    const ap = currentTasks.ap;
+    const row = currentTasks.row;
     const posters = row ? getPostersFromRow(row) : [];
 
     const note = (norm(expressTextEl.value)) ? ("EXPRESS: " + norm(expressTextEl.value)) : "";
 
     addLogEntry(ap, currentPhotoCode, posters, note, filename);
 
-    // back to tasks
+    // ✅ Session done flags (fix “niekedy nezozelenie”)
+    if(normCode(currentPhotoCode) === normCode(currentTasks.standCode)) sessionDone.stand = true;
+    if(normCode(currentPhotoCode) === normCode(currentTasks.b1Code)) sessionDone.b1 = true;
+    if(stripSuffixABC(currentPhotoCode) === normCode(currentTasks.staticBase)) sessionDone.stat = true;
+
     lastBlob = null;
     afterPhoto.style.display = "none";
     tasksCard.style.display = "block";
@@ -818,14 +856,9 @@
   });
 
   btnSaveExpress.addEventListener("click", ()=>{
-    // len označíme ako splnené v session
     expressSaved = true;
     expressArea.style.display = "none";
-    btnExpressToggle.textContent = "Express uložený";
-    btnExpressToggle.style.background = "var(--greenBg)";
-    btnExpressToggle.style.border = "1px solid var(--green)";
-    btnExpressToggle.style.color = "var(--green)";
-    updateFinishButton();
+    renderTasks(); // aby sa prefarbil blok a finish zareagoval
   });
 
   // ===== Finish =====
@@ -851,12 +884,10 @@
 
     const miss = missingList();
     if(miss.length === 0){
-      // všetko hotové -> reset
       resetToNew();
       return;
     }
 
-    // confirm
     finishText.textContent = "Chýba: " + miss.join(", ");
     dlgFinish.showModal();
   });
@@ -868,7 +899,6 @@
   });
 
   function resetToNew(){
-    // vyčisti a priprav na nové
     tasksCard.style.display = "none";
     afterPhoto.style.display = "none";
     taskList.innerHTML = "";
@@ -884,6 +914,8 @@
     btnExpressToggle.textContent = "Express som odovzdal";
     btnExpressToggle.removeAttribute("style");
 
+    resetSessionFlags();
+
     apInput.value = "";
     apInput.focus();
   }
@@ -895,7 +927,6 @@
 
     const t = computeTasks(ap);
     if(!t){
-      // nič nehlásime (minimalizmus), len reset tasks
       tasksCard.style.display = "none";
       return;
     }
@@ -905,8 +936,12 @@
     lastBlob = null;
     staticSuffix = "X";
     expressSaved = false;
+    expressTextEl.value = "";
+    expressArea.style.display = "none";
     btnExpressToggle.textContent = "Express som odovzdal";
     btnExpressToggle.removeAttribute("style");
+
+    resetSessionFlags();
 
     tasksCard.style.display = "block";
     renderTasks();
