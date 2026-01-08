@@ -21,6 +21,7 @@
     .iconBtn:disabled{opacity:.35}
     .btn{padding:14px 14px;border-radius:16px;border:2px solid #111;background:#fff;font-weight:900;width:100%}
     .btn.primary{background:#111;color:#fff}
+    .btn.danger{border-color:#b00020;color:#b00020}
     video,img{width:100%;border-radius:16px;border:1px solid #eee;background:#000;margin-top:12px}
     dialog{border:none;border-radius:16px;padding:14px;max-width:420px;width:92vw}
     dialog::backdrop{background:rgba(0,0,0,.45)}
@@ -28,6 +29,10 @@
     .tiny{font-size:12px;color:#666;margin-top:8px}
     .card{border:1px solid #ddd;border-radius:16px;padding:12px;margin-top:12px}
     .pill{display:inline-block;border:1px solid #111;border-radius:999px;padding:6px 10px;margin:4px 6px 0 0;font-weight:900}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border-bottom:1px solid #eee;padding:8px 6px;font-size:13px;vertical-align:top}
+    th{text-align:left;font-size:12px;color:#666}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   </style>
 </head>
 <body>
@@ -61,7 +66,7 @@
   <img id="preview" style="display:none" alt="Náhľad" />
 
   <div id="afterPhoto" style="display:none;margin-top:10px">
-    <button id="btnOk" class="btn primary">OK (stiahnuť)</button>
+    <button id="btnOk" class="btn primary">OK (stiahnuť + zapísať do reportu)</button>
     <div style="height:10px"></div>
     <button id="btnRetake" class="btn">Znova</button>
     <div style="height:10px"></div>
@@ -88,6 +93,36 @@
     <div style="height:10px"></div>
     <button id="btnLookup" class="btn">Zobraziť plagáty</button>
     <div id="posters" style="margin-top:10px"></div>
+  </div>
+
+  <!-- Denný report -->
+  <div class="card">
+    <div style="font-weight:900;margin-bottom:8px">Denný report</div>
+
+    <div class="row2">
+      <div>
+        <div class="tiny">Dátum</div>
+        <input id="repDate" type="date" />
+      </div>
+      <div>
+        <div class="tiny">Reprezentant (voliteľné)</div>
+        <input id="repName" placeholder="napr. Jano" />
+      </div>
+    </div>
+
+    <div style="height:10px"></div>
+    <div class="row2">
+      <button id="btnShowReport" class="btn">Zobraziť</button>
+      <button id="btnExportCsv" class="btn">Export CSV</button>
+    </div>
+
+    <div style="height:10px"></div>
+    <div class="row2">
+      <button id="btnClearDay" class="btn danger">Vymazať deň</button>
+      <button id="btnClearAll" class="btn danger">Vymazať všetko</button>
+    </div>
+
+    <div id="reportWrap"></div>
   </div>
 
   <!-- Excel parser -->
@@ -127,13 +162,21 @@
   const btnLookup = document.getElementById('btnLookup');
   const postersEl = document.getElementById('posters');
 
+  const repDate = document.getElementById('repDate');
+  const repName = document.getElementById('repName');
+  const btnShowReport = document.getElementById('btnShowReport');
+  const btnExportCsv = document.getElementById('btnExportCsv');
+  const btnClearDay = document.getElementById('btnClearDay');
+  const btnClearAll = document.getElementById('btnClearAll');
+  const reportWrap = document.getElementById('reportWrap');
+
   let currentCode = "";
   let stream = null;
   let scanning = false;
   let lastBlob = null;
 
   // ===== DB =====
-  let dbRows = null; // 2D array
+  let dbRows = null;
   function colToIndex(letter){
     let s = String(letter).toUpperCase().replace(/[^A-Z]/g,"");
     let n = 0;
@@ -144,9 +187,22 @@
   const IDX_AG = colToIndex("AG");
   const IDX_AM = colToIndex("AM");
 
+  // ===== Report storage =====
+  const LOG_KEY = "ids_foto_log_v1";
+  const REP_KEY = "ids_rep_name_v1";
+
+  function loadLog(){
+    try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); }
+    catch { return []; }
+  }
+  function saveLog(arr){
+    localStorage.setItem(LOG_KEY, JSON.stringify(arr));
+  }
+
   function safeName(s){
     return String(s || "").trim().replace(/[\\/:*?"<>|]+/g, "_");
   }
+
   function setCode(v){
     currentCode = String(v || "").trim();
     codeOut.textContent = currentCode || "—";
@@ -168,6 +224,29 @@
     }
   }
 
+  function getPostersForAP(apCode){
+    if(!dbRows) return [];
+    const wanted = String(apCode || "").trim();
+    if(!wanted) return [];
+
+    let found = null;
+    for(let r=0;r<dbRows.length;r++){
+      const row = dbRows[r];
+      if(!row) continue;
+      const ap = String(row[IDX_AP] ?? "").trim();
+      if(ap === wanted){ found = row; break; }
+    }
+    if(!found) return [];
+
+    const set = new Set();
+    for(let i=IDX_AG;i<=IDX_AM;i++){
+      const v = String(found[i] ?? "").trim();
+      if(!v) continue;
+      v.split(/[\s,;\/]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>set.add(x));
+    }
+    return Array.from(set);
+  }
+
   // ===== Scan =====
   function stopStream(){
     if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
@@ -177,6 +256,7 @@
     scanWrap.style.display = "none";
     stopStream();
   }
+
   async function startScan(){
     if (!('BarcodeDetector' in window)) {
       dlg.showModal();
@@ -250,42 +330,119 @@
     setCode("");
   }
 
-  // ===== Lookup posters =====
+  // ===== Lookup posters (UI) =====
   function showPostersFor(apCode){
     postersEl.innerHTML = "";
+    const posters = getPostersForAP(apCode);
     if(!dbRows){
       postersEl.innerHTML = "<span class='pill'>DB nie je načítaná</span>";
       return;
     }
-    const wanted = String(apCode || "").trim();
-    if(!wanted){
+    if(!String(apCode||"").trim()){
       postersEl.innerHTML = "<span class='pill'>Zadaj kód</span>";
       return;
     }
-
-    let found = null;
-    for(let r=0;r<dbRows.length;r++){
-      const row = dbRows[r];
-      if(!row) continue;
-      const ap = String(row[IDX_AP] ?? "").trim();
-      if(ap === wanted){ found = row; break; }
-    }
-    if(!found){
-      postersEl.innerHTML = "<span class='pill'>nenájdené</span>";
-      return;
-    }
-
-    const set = new Set();
-    for(let i=IDX_AG;i<=IDX_AM;i++){
-      const v = String(found[i] ?? "").trim();
-      if(!v) continue;
-      v.split(/[\s,;\/]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>set.add(x));
-    }
-    if(set.size === 0){
+    if(posters.length === 0){
       postersEl.innerHTML = "<span class='pill'>—</span>";
       return;
     }
-    postersEl.innerHTML = Array.from(set).map(x => `<span class="pill">${x}</span>`).join("");
+    postersEl.innerHTML = posters.map(x => `<span class="pill">${x}</span>`).join("");
+  }
+
+  // ===== Report rendering/export =====
+  function isoDate(d){
+    // YYYY-MM-DD local
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const day = String(d.getDate()).padStart(2,"0");
+    return `${y}-${m}-${day}`;
+  }
+
+  function fmtTime(iso){
+    // "2026-01-08T10:12:33" -> "10:12:33"
+    return String(iso||"").split("T")[1]?.slice(0,8) || "";
+  }
+
+  function escapeCsv(s){
+    const v = String(s ?? "");
+    if (/[",\n;]/.test(v)) return `"${v.replaceAll('"','""')}"`;
+    return v;
+  }
+
+  function renderReport(){
+    const day = repDate.value || isoDate(new Date());
+    const log = loadLog().filter(x => x.day === day);
+
+    if(log.length === 0){
+      reportWrap.innerHTML = "<div class='tiny' style='margin-top:10px'>Žiadne záznamy pre tento deň.</div>";
+      return;
+    }
+
+    const rows = log
+      .slice()
+      .sort((a,b)=> (a.ts||"").localeCompare(b.ts||""));
+
+    let html = `<table>
+      <thead><tr>
+        <th>Čas</th><th>Kód</th><th>Plagáty</th><th>Súbor</th>
+      </tr></thead><tbody>`;
+
+    for(const r of rows){
+      html += `<tr>
+        <td>${fmtTime(r.ts)}</td>
+        <td><b>${r.code || ""}</b></td>
+        <td>${(r.posters && r.posters.length) ? r.posters.join(", ") : "—"}</td>
+        <td>${r.file || ""}</td>
+      </tr>`;
+    }
+    html += `</tbody></table>
+      <div class="tiny" style="margin-top:8px">Spolu: <b>${rows.length}</b></div>`;
+    reportWrap.innerHTML = html;
+  }
+
+  function exportCsv(){
+    const day = repDate.value || isoDate(new Date());
+    const rep = (repName.value || "").trim();
+    const log = loadLog().filter(x => x.day === day).sort((a,b)=> (a.ts||"").localeCompare(b.ts||""));
+    if(log.length === 0){
+      alert("Pre tento deň nie sú žiadne záznamy.");
+      return;
+    }
+
+    const header = ["day","time","representant","code","posters","file"];
+    const lines = [header.join(";")];
+
+    for(const r of log){
+      const time = fmtTime(r.ts);
+      const posters = (r.posters && r.posters.length) ? r.posters.join(", ") : "";
+      lines.push([
+        escapeCsv(r.day),
+        escapeCsv(time),
+        escapeCsv(rep),
+        escapeCsv(r.code),
+        escapeCsv(posters),
+        escapeCsv(r.file)
+      ].join(";"));
+    }
+
+    const csv = lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const filename = `report_${day}${rep ? "_" + safeName(rep) : ""}.csv`;
+    downloadNow(blob, filename);
+  }
+
+  function clearDay(){
+    const day = repDate.value || isoDate(new Date());
+    if(!confirm("Vymazať záznamy pre deň " + day + "?")) return;
+    const log = loadLog().filter(x => x.day !== day);
+    saveLog(log);
+    renderReport();
+  }
+
+  function clearAll(){
+    if(!confirm("Vymazať VŠETKY záznamy reportu v tomto telefóne?")) return;
+    saveLog([]);
+    renderReport();
   }
 
   // ===== Events =====
@@ -326,8 +483,26 @@
 
   btnOk.addEventListener('click', ()=>{
     if(!currentCode || !lastBlob) return;
+
     const filename = safeName(currentCode) + ".jpg";
     downloadNow(lastBlob, filename);
+
+    // zapíš do reportu
+    const now = new Date();
+    const entry = {
+      ts: now.toISOString().slice(0,19),       // YYYY-MM-DDTHH:MM:SS
+      day: isoDate(now),
+      code: String(currentCode),
+      posters: getPostersForAP(currentCode),
+      file: filename
+    };
+    const log = loadLog();
+    log.push(entry);
+    saveLog(log);
+
+    // refresh report ak je otvorený ten istý deň
+    if((repDate.value || isoDate(new Date())) === entry.day) renderReport();
+
     resetAfterSave();
   });
 
@@ -339,9 +514,21 @@
   btnLookup.addEventListener('click', ()=> showPostersFor(lookupCode.value));
   lookupCode.addEventListener('keydown', (e)=>{ if(e.key==="Enter") btnLookup.click(); });
 
+  // Report controls
+  btnShowReport.addEventListener('click', renderReport);
+  btnExportCsv.addEventListener('click', exportCsv);
+  btnClearDay.addEventListener('click', clearDay);
+  btnClearAll.addEventListener('click', clearAll);
+
   // init
   setCode("");
   loadDbXlsx();
+
+  // report defaults
+  repDate.value = (new Date()).toISOString().slice(0,10);
+  repName.value = localStorage.getItem(REP_KEY) || "";
+  repName.addEventListener('change', ()=> localStorage.setItem(REP_KEY, repName.value.trim()));
+  renderReport();
 </script>
 </body>
 </html>
