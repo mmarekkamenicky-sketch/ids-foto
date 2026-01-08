@@ -24,6 +24,8 @@
       --greenBg:#eefaf2;
 
       --red:#b00020;
+      --blue:#1f5fff;
+      --blueBg:#eef3ff;
     }
 
     body{
@@ -98,6 +100,23 @@
     .sp{height:10px}
     .sp2{height:14px}
 
+    /* Posters box */
+    #postersCard{ display:none; }
+    .pillWrap{ display:flex; flex-wrap:wrap; gap:8px; }
+    .pill{
+      border:1px solid var(--line);
+      padding:8px 10px;
+      font-weight:900;
+      background:#fff;
+      color:#111;
+      user-select:none;
+    }
+    .pill.blue{
+      background:var(--blueBg);
+      border-color:var(--blue);
+      color:var(--blue);
+    }
+
     /* Task rows */
     .task{
       border:1px solid var(--line);
@@ -146,7 +165,7 @@
     .suffixWrap{
       display:flex;
       gap:10px;
-      flex-wrap:wrap;          /* ✅ nikdy mimo obrazovku */
+      flex-wrap:wrap;
       align-items:center;
       justify-content:flex-start;
     }
@@ -247,6 +266,13 @@
 
   <div class="sp2"></div>
 
+  <!-- POSTERS -->
+  <div id="postersCard" class="card">
+    <div class="pillWrap" id="pillWrap"></div>
+  </div>
+
+  <div class="sp2"></div>
+
   <!-- TASKS -->
   <div id="tasksCard" class="card" style="display:none">
     <div id="taskList" style="display:flex;flex-direction:column;gap:10px"></div>
@@ -337,6 +363,9 @@
 
   const manualCode = document.getElementById('manualCode');
   const btnCamera = document.getElementById('btnCamera');
+
+  const postersCard = document.getElementById('postersCard');
+  const pillWrap = document.getElementById('pillWrap');
 
   const tasksCard = document.getElementById('tasksCard');
   const taskList = document.getElementById('taskList');
@@ -465,6 +494,7 @@
     return false;
   }
 
+  // ✅ plagáty z AG..AM
   function getPostersFromRow(row){
     if(!row) return [];
     const from = colToIndex("AG");
@@ -478,23 +508,41 @@
     return Array.from(set);
   }
 
+  // ✅ zobrazenie plagátov (pillky)
+  function renderPosters(row){
+    const posters = getPostersFromRow(row);
+    pillWrap.innerHTML = "";
+
+    if(!posters.length){
+      postersCard.style.display = "none";
+      return;
+    }
+
+    postersCard.style.display = "block";
+    posters.forEach(p=>{
+      const d = document.createElement("div");
+      d.className = "pill blue";
+      d.textContent = p;
+      pillWrap.appendChild(d);
+    });
+  }
+
   // ===== Session state =====
   let currentTasks=null;
   let currentPhotoCode="";
   let lastBlob=null;
 
-  let staticSuffix="A"; // default, but card click = bez suffixu
+  let staticSuffix="A";
   let expressSaved=false;
 
-  // okamžitá pamäť (aby sa úloha hneď vyfarbila)
   let sessionDone = { stand:false, b1:false, stat:false };
   function resetSessionFlags(){
     sessionDone = { stand:false, b1:false, stat:false };
   }
 
   // ===== Log/report =====
-  const LOG_KEY="ids_foto_log_v10";
-  const REP_KEY="ids_rep_name_v10";
+  const LOG_KEY="ids_foto_log_v11";
+  const REP_KEY="ids_rep_name_v11";
 
   function loadLog(){
     try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); }
@@ -577,7 +625,6 @@
 
   // ===== Task completion =====
   function isPhotoDoneToday(ap, type, standCode, b1Code, staticBase){
-    // najprv session (okamžité)
     if(type==="stand" && sessionDone.stand) return true;
     if(type==="b1" && sessionDone.b1) return true;
     if(type==="static" && sessionDone.stat) return true;
@@ -635,7 +682,6 @@
     return div;
   }
 
-  // ✅ Statický: karta = bez suffixu, tlačidlá = A/B/C
   function makeStaticRow(t, state){
     const div = document.createElement("div");
     div.className = "task " + state;
@@ -683,7 +729,6 @@
     left.appendChild(suffixWrap);
     div.appendChild(left);
 
-    // click na kartu = bez suffixu
     if(state !== "off"){
       div.addEventListener("click", ()=>{
         const base = t.staticBase || "";
@@ -722,7 +767,6 @@
     const t = currentTasks;
     taskList.innerHTML = "";
 
-    // STAND
     const enabledStand = t.needStand && !!t.standCode;
     const doneStand = enabledStand ? isPhotoDoneToday(t.ap,"stand",t.standCode,t.b1Code,t.staticBase) : false;
     const stateStand = enabledStand ? (doneStand ? "done" : "todo") : "off";
@@ -739,7 +783,6 @@
       }
     }));
 
-    // B1
     const enabledB1 = t.needB1 && !!t.b1Code;
     const doneB1 = enabledB1 ? isPhotoDoneToday(t.ap,"b1",t.standCode,t.b1Code,t.staticBase) : false;
     const stateB1 = enabledB1 ? (doneB1 ? "done" : "todo") : "off";
@@ -756,14 +799,12 @@
       }
     }));
 
-    // STATIC
     const enabledStatic = t.needStatic && !!t.staticBase;
     const doneStatic = enabledStatic ? isPhotoDoneToday(t.ap,"static",t.standCode,t.b1Code,t.staticBase) : false;
     const stateStatic = enabledStatic ? (doneStatic ? "done" : "todo") : "off";
 
     taskList.appendChild(makeStaticRow(t, stateStatic));
 
-    // EXPRESS block
     if(t.needExpress){
       expressBlock.style.display = "block";
       btnExpressToggle.textContent = expressSaved ? "Express uložený" : "Express som odovzdal";
@@ -903,6 +944,9 @@
 
   function resetToNew(){
     tasksCard.style.display = "none";
+    postersCard.style.display = "none";
+    pillWrap.innerHTML = "";
+
     afterPhoto.style.display = "none";
     taskList.innerHTML = "";
     currentTasks = null;
@@ -933,6 +977,7 @@
     const t = computeTasks(ap);
     if(!t){
       tasksCard.style.display = "none";
+      postersCard.style.display = "none";
       return;
     }
 
@@ -947,6 +992,9 @@
     btnExpressToggle.removeAttribute("style");
 
     resetSessionFlags();
+
+    // ✅ zobraz plagáty AG..AM
+    renderPosters(t.row);
 
     tasksCard.style.display = "block";
     renderTasks();
@@ -1017,7 +1065,7 @@
               refreshCameraButton();
               stopScan();
               panelScan.style.display="none";
-              btnCamera.click(); // rovno foťák
+              btnCamera.click();
               return;
             }
           }
