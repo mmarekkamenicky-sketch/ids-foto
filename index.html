@@ -12,23 +12,20 @@
 
   <style>
     :root{
-      --red:#b00020;
       --black:#111;
       --gray:#666;
       --line:#ddd;
       --ok:#0a7a2f;
       --bad:#b00020;
       --soft:#f6f6f6;
-      --blue:#0b57d0;
-      --blueSoft:#e7f0ff;
       --yellow:#ffd400;
-      --yellowText:#111;
+      --yellow2:#ffe58a;
+      --green:#0a7a2f;
     }
     body{
       font-family: Onest, "Aptos Narrow", Aptos, system-ui, Segoe UI, Roboto, Arial, sans-serif;
       margin:14px;max-width:820px
     }
-    *{border-radius:0 !important}
 
     .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
     .badge{display:inline-block;padding:6px 10px;background:#f2f2f2;font-weight:900;border:1px solid #e5e5e5}
@@ -44,7 +41,7 @@
       background:#fff;
       font-family: inherit;
     }
-    textarea{min-height:70px;resize:vertical}
+    textarea{min-height:60px;resize:vertical}
 
     .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
@@ -63,20 +60,28 @@
     .icon{font-size:34px;line-height:1;color:var(--black)}
     .iconBtn:active{transform:scale(.99)}
     .iconBtn:disabled{opacity:.35}
-    .iconBtn.camera.enabled{border-color:var(--red)}
+    .iconBtn.camera.enabled{border-color:var(--bad)}
 
     .btn{
       padding:14px 14px;border:2px solid var(--black);background:#fff;font-weight:900;width:100%;
       font-family: inherit;
     }
-    .btn.danger{border-color:var(--red);color:var(--red)}
-    .btn.saveYellow{
+    .btn.danger{border-color:var(--bad);color:var(--bad)}
+    .btn.primary{
       background:var(--yellow);
       border-color:var(--yellow);
-      color:var(--yellowText);
+      color:#111;
+    }
+
+    /* BIG SAVE (navrch + mierne zaoblené) */
+    .btn.saveBig{
+      background:var(--yellow);
+      border-color:var(--yellow);
+      color:#111;
       font-weight:900;
-      font-size:18px;
-      padding:16px 14px;
+      font-size:22px;
+      padding:18px 16px;
+      border-radius:10px;
     }
 
     video{width:100%;border:1px solid #eee;background:#000;margin-top:12px}
@@ -90,45 +95,39 @@
     .task{
       border:2px solid var(--bad);
       background:#fff;
-      padding:10px;
+      padding:12px;
       font-weight:900;
       cursor:pointer;
       user-select:none;
     }
     .task small{display:block;font-weight:700;color:#333;margin-top:6px}
     .task .code{display:inline-block;margin-top:6px;padding:6px 10px;background:var(--soft);border:1px solid #ddd}
-    .task.done{border-color:var(--ok);color:var(--ok)}
+
+    /* Čaká => žlté pozadie */
+    .task.todo{
+      background:var(--yellow2);
+      border-color:#caa400;
+      color:#111;
+    }
+
+    /* Hotové => biele + zelený rám */
+    .task.done{
+      background:#fff;
+      border-color:var(--green);
+      color:var(--green);
+    }
     .task.done .code{border-color:#cfe8d7;background:#f2fbf5}
-    .task.muted{opacity:.55;cursor:default}
+
+    .task.muted{opacity:.55;cursor:default;background:#fff}
     .taskHeader{display:flex;justify-content:space-between;gap:10px;align-items:center}
     .check{font-weight:900}
     .warn{color:var(--bad);font-weight:900}
 
-    /* Express */
+    /* Express simple */
     .exWrap{margin-top:12px;border-top:1px dashed #ddd;padding-top:12px}
     .exTitle{font-weight:900;margin-bottom:8px}
-    .exGrid{display:grid;grid-template-columns:repeat(9,1fr);gap:8px}
-    .exBox{
-      border:2px solid #bbb;
-      padding:10px 0;
-      text-align:center;
-      font-weight:900;
-      cursor:pointer;
-      user-select:none;
-      background:#fff;
-    }
-    .exBox.on{border-color:var(--blue);background:var(--blueSoft);color:var(--blue)}
-    .exBox.pre{border-color:var(--blue);color:var(--blue);background:#fff}
+    .exArea{display:none;margin-top:10px}
     .exHint{font-size:12px;color:#444;margin-top:8px}
-
-    .okToast{
-      margin-top:10px;
-      border:2px solid var(--ok);
-      color:var(--ok);
-      font-weight:900;
-      padding:10px;
-      background:#f2fbf5;
-    }
 
     table{width:100%;border-collapse:collapse;margin-top:10px}
     th,td{border-bottom:1px solid #eee;padding:8px 6px;font-size:12.5px;vertical-align:top}
@@ -174,13 +173,14 @@
     <div style="margin-top:10px"><button id="btnStop" class="btn">Stop</button></div>
   </div>
 
-  <!-- Po fotení: minimalistické uloženie -->
+  <!-- Po fotení: Uložiť navrch, bez náhľadu -->
   <div id="afterPhoto" style="display:none;margin-top:12px">
-    <button id="btnSave" class="btn saveYellow">Uložiť</button>
+    <button id="btnSave" class="btn saveBig">Uložiť</button>
     <div style="height:10px"></div>
-    <button id="btnRetake" class="btn">Znova</button>
-    <div style="height:10px"></div>
-    <button id="btnBackTasks" class="btn">Späť na úlohy</button>
+    <div class="row2">
+      <button id="btnRetake" class="btn">Znova</button>
+      <button id="btnBackTasks" class="btn">Späť</button>
+    </div>
   </div>
 
   <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none" />
@@ -205,9 +205,9 @@
     <div id="posters" style="margin-top:10px"></div>
   </div>
 
-  <!-- Report -->
+  <!-- Report (SKRYTÝ kým neklikneš) -->
   <div class="card">
-    <div style="font-weight:900;margin-bottom:8px">Denný report</div>
+    <div style="font-weight:900;margin-bottom:8px">Report</div>
 
     <div class="row2">
       <div>
@@ -222,17 +222,18 @@
 
     <div style="height:10px"></div>
     <div class="row2">
-      <button id="btnShowReport" class="btn">Zobraziť</button>
+      <button id="btnShowReport" class="btn">Zobraziť report</button>
       <button id="btnExportCsv" class="btn">Export CSV</button>
     </div>
 
-    <div style="height:10px"></div>
-    <div class="row2">
-      <button id="btnClearDay" class="btn danger">Vymazať deň</button>
-      <button id="btnClearAll" class="btn danger">Vymazať všetko</button>
+    <div id="reportControls" style="display:none;margin-top:10px">
+      <div class="row2">
+        <button id="btnClearDay" class="btn danger">Vymazať deň</button>
+        <button id="btnClearAll" class="btn danger">Vymazať všetko</button>
+      </div>
     </div>
 
-    <div id="reportWrap"></div>
+    <div id="reportWrap" style="display:none"></div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -245,6 +246,7 @@
   // ===== KONFIG =====
   const COL_MAIN_AP = "AP";
   const CODE_COLUMNS = ["B","C","AO"];
+
   const COL_POSTER_FROM = "AG";
   const COL_POSTER_TO   = "AM";
 
@@ -296,6 +298,7 @@
   const btnClearDay = document.getElementById('btnClearDay');
   const btnClearAll = document.getElementById('btnClearAll');
   const reportWrap = document.getElementById('reportWrap');
+  const reportControls = document.getElementById('reportControls');
 
   let currentCode = "";
   let lastBlob = null;
@@ -303,10 +306,10 @@
   let stream = null;
   let scanning = false;
 
-  // current AP tasks + express
   let currentTasks = null;
-  let expressPref = new Set();
-  let expressPick = new Set();
+
+  // Express text (dobrovoľný)
+  let expressText = ""; // uložené per AP session
 
   // ===== DB =====
   let dbRows = null;
@@ -417,8 +420,8 @@
   }
 
   // ===== Local report =====
-  const LOG_KEY = "ids_foto_log_v6";
-  const REP_KEY = "ids_rep_name_v6";
+  const LOG_KEY = "ids_foto_log_v7";
+  const REP_KEY = "ids_rep_name_v7";
 
   function loadLog(){
     try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); }
@@ -443,25 +446,6 @@
     const has = !!currentCode;
     btnPhoto.disabled = !has;
     btnPhoto.classList.toggle("enabled", has);
-  }
-
-  // ===== Express =====
-  function parseExTokens(text){
-    const s = normCode(text);
-    if(!s) return new Set();
-    const toks = s.split(/[\s,;\/]+/).filter(Boolean);
-    const out = new Set();
-    for(const t of toks){
-      if(/^EX[1-9]$/.test(t)) out.add(t);
-    }
-    return out;
-  }
-
-  function getExpressNotePart(){
-    const arr = Array.from(expressPick);
-    arr.sort();
-    if(arr.length === 0) return ""; // dobrovoľné
-    return "EXPRESS: " + arr.join(" ");
   }
 
   // ===== Task done check =====
@@ -489,64 +473,9 @@
     const b1Code     = norm(row[colToIndex("C")]);
     const staticBase = norm(row[colToIndex("AO")]);
 
-    const expressCell = norm(row[IDX_EXPRESS]);
-    const showExpress = expressCell !== "";
-    const pref = parseExTokens(expressCell);
+    const hasExpress = norm(row[IDX_EXPRESS]) !== "";
 
-    return { ap: apN, row, needStand, needB1, needStatic, standCode, b1Code, staticBase, showExpress, pref };
-  }
-
-  function renderExpressInline(prefSet){
-    const exWrap = document.createElement("div");
-    exWrap.className = "exWrap";
-
-    const title = document.createElement("div");
-    title.className = "exTitle";
-    title.textContent = "Express som odovzdal (dobrovoľné)";
-    exWrap.appendChild(title);
-
-    const grid = document.createElement("div");
-    grid.className = "exGrid";
-
-    for(let i=1;i<=9;i++){
-      const token = "EX"+i;
-      const box = document.createElement("div");
-      box.className = "exBox";
-      if(prefSet.has(token)) box.classList.add("pre");
-      if(expressPick.has(token)) box.classList.add("on");
-      box.textContent = token;
-
-      box.addEventListener("click", ()=>{
-        if(expressPick.has(token)) expressPick.delete(token);
-        else expressPick.add(token);
-        // rerender celé úlohy (jednoduché a bezpečné)
-        renderTasksForAP(currentTasks.ap);
-      });
-
-      grid.appendChild(box);
-    }
-    exWrap.appendChild(grid);
-
-    const hint = document.createElement("div");
-    hint.className = "exHint";
-    hint.textContent = "Modré = odporúčané podľa DB (AL). Vyklikaj iba to, čo si reálne odovzdal.";
-    exWrap.appendChild(hint);
-
-    return exWrap;
-  }
-
-  function allDoneMessage(tasks){
-    const okStand  = !tasks.needStand  || isTaskDoneToday(tasks.ap, "stand",  tasks.standCode, tasks.b1Code, tasks.staticBase);
-    const okB1     = !tasks.needB1     || isTaskDoneToday(tasks.ap, "b1",     tasks.standCode, tasks.b1Code, tasks.staticBase);
-    const okStatic = !tasks.needStatic || isTaskDoneToday(tasks.ap, "static", tasks.standCode, tasks.b1Code, tasks.staticBase);
-    const allOk = okStand && okB1 && okStatic;
-
-    if(!allOk) return null;
-
-    const toast = document.createElement("div");
-    toast.className = "okToast";
-    toast.textContent = "Pri tejto ploche som urobil všetko ✅";
-    return toast;
+    return { ap: apN, row, needStand, needB1, needStatic, standCode, b1Code, staticBase, hasExpress };
   }
 
   function renderTasksForAP(ap){
@@ -562,13 +491,19 @@
     }
     currentTasks = t;
 
-    // reset express pref z DB, ale user výber nech ostáva
-    expressPref = new Set(t.pref);
+    const header = document.createElement("div");
+    header.className = "tiny";
+    header.innerHTML = `AP: <b>${t.ap}</b>`;
+    tasksWrap.appendChild(header);
 
     const makeTask = (kind, label, code, enabled) => {
       const done = enabled ? isTaskDoneToday(t.ap, kind, t.standCode, t.b1Code, t.staticBase) : false;
-      const cls = enabled ? (done ? "task done" : "task") : "task muted";
-      const status = enabled ? (done ? `✓ Odfotené` : `⏺ Čaká`) : `—`;
+
+      let cls = "task";
+      if(!enabled) cls += " muted";
+      else cls += done ? " done" : " todo";
+
+      const status = enabled ? (done ? `✓ Odfotené` : `⏺ Fotiť`) : `—`;
 
       const div = document.createElement("div");
       div.className = cls;
@@ -580,20 +515,16 @@
         <small>Kód: <span class="code">${code || "—"}</span></small>
       `;
 
-      if(!div.classList.contains("muted")){
+      if(enabled){
         div.addEventListener("click", ()=>{
           if(!code) return;
           setCode(code);
-          openCamera(); // turbo
+          openCamera();
         });
       }
+
       return div;
     };
-
-    const header = document.createElement("div");
-    header.className = "tiny";
-    header.innerHTML = `AP: <b>${t.ap}</b> — klikni na úlohu a otvorí sa foto`;
-    tasksWrap.appendChild(header);
 
     const row = document.createElement("div");
     row.className = "row3";
@@ -603,14 +534,44 @@
     row.appendChild(makeTask("static", "Fotím statický plagát", t.staticBase, t.needStatic && !!t.staticBase));
     tasksWrap.appendChild(row);
 
-    // Express inline hneď po úlohách
-    if(t.showExpress){
-      tasksWrap.appendChild(renderExpressInline(expressPref));
-    }
+    // Express: jednoduché rozbalovacie pole, dobrovoľné
+    if(t.hasExpress){
+      const exWrap = document.createElement("div");
+      exWrap.className = "exWrap";
 
-    // všetko hotové (len fotky, Express dobrovoľný)
-    const toast = allDoneMessage(t);
-    if(toast) tasksWrap.appendChild(toast);
+      const title = document.createElement("div");
+      title.className = "exTitle";
+      title.textContent = "Express";
+      exWrap.appendChild(title);
+
+      const btn = document.createElement("button");
+      btn.className = "btn primary";
+      btn.textContent = "Express som odovzdal";
+      exWrap.appendChild(btn);
+
+      const area = document.createElement("div");
+      area.className = "exArea";
+
+      const ta = document.createElement("textarea");
+      ta.placeholder = "Dobrovoľne napíš, čo si odovzdal (napr. EX1 EX3) alebo nechaj prázdne.";
+      ta.value = expressText || "";
+      ta.addEventListener("input", ()=> expressText = ta.value);
+
+      const hint = document.createElement("div");
+      hint.className = "exHint";
+      hint.textContent = "Poznámka sa uloží do reportu pri najbližšom fotení.";
+
+      area.appendChild(ta);
+      area.appendChild(hint);
+      exWrap.appendChild(area);
+
+      btn.addEventListener("click", ()=>{
+        area.style.display = (area.style.display === "block") ? "none" : "block";
+        if(area.style.display === "block") ta.focus();
+      });
+
+      tasksWrap.appendChild(exWrap);
+    }
   }
 
   // ===== Scan =====
@@ -799,8 +760,6 @@
     const f = photoInput.files && photoInput.files[0];
     if(!f) return;
     lastBlob = f;
-
-    // minimalistický režim: ukáž iba Uložiť/Znova
     afterPhoto.style.display = "block";
   });
 
@@ -824,11 +783,9 @@
     const resolved = getRowForPhotoCode(currentCode);
     const ap = resolved ? resolved.ap : "";
     const row = resolved ? resolved.row : null;
-
     const posters = row ? getPostersFromRow(row) : [];
 
-    // poznámka = iba Express (dobrovoľné) – nič viac, aby sme ostali minimalistickí
-    const note = getExpressNotePart();
+    const note = norm(expressText) ? ("EXPRESS: " + norm(expressText)) : "";
 
     const now = new Date();
     const entry = {
@@ -847,7 +804,7 @@
     saveLog(log);
 
     // refresh report + tasks
-    renderReport();
+    if(reportWrap.style.display === "block") renderReport();
     if(apInput.value.trim()) renderTasksForAP(apInput.value.trim());
 
     // pripravené na ďalšie fotenie
@@ -878,7 +835,21 @@
   btnLookup.addEventListener('click', ()=> showPostersFor(lookupCode.value));
   lookupCode.addEventListener('keydown', (e)=>{ if(e.key==="Enter") btnLookup.click(); });
 
-  btnShowReport.addEventListener('click', renderReport);
+  // Report hidden by default; show on click
+  btnShowReport.addEventListener('click', ()=>{
+    const visible = reportWrap.style.display === "block";
+    if(visible){
+      reportWrap.style.display = "none";
+      reportControls.style.display = "none";
+      btnShowReport.textContent = "Zobraziť report";
+    }else{
+      reportWrap.style.display = "block";
+      reportControls.style.display = "block";
+      btnShowReport.textContent = "Skryť report";
+      renderReport();
+    }
+  });
+
   btnExportCsv.addEventListener('click', exportCsv);
   btnClearDay.addEventListener('click', clearDay);
   btnClearAll.addEventListener('click', clearAll);
@@ -897,7 +868,6 @@
   repDate.value = (new Date()).toISOString().slice(0,10);
   repName.value = localStorage.getItem(REP_KEY) || "";
   repName.addEventListener('change', ()=> localStorage.setItem(REP_KEY, repName.value.trim()));
-  renderReport();
 </script>
 </body>
 </html>
