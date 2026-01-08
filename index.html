@@ -288,11 +288,14 @@
 
           <div class="sp"></div>
 
-          <!-- voliteľný doplnkový text, keby chcel -->
           <textarea id="expressExtra" placeholder="Poznámka k expressu (voliteľné)"></textarea>
 
           <div class="sp"></div>
-          <button id="btnSaveExpress" class="btn" style="width:100%">Uložiť express</button>
+
+          <div class="row">
+            <button id="btnExpressDelivered" class="btn" style="flex:1">Odovzdaný</button>
+            <button id="btnExpressNot" class="btn gray" style="flex:1">Neodovzdaný</button>
+          </div>
         </div>
       </div>
 
@@ -436,7 +439,8 @@
   const exGrid = document.getElementById('exGrid');
   const expressHint = document.getElementById('expressHint');
   const expressExtra = document.getElementById('expressExtra');
-  const btnSaveExpress = document.getElementById('btnSaveExpress');
+  const btnExpressDelivered = document.getElementById('btnExpressDelivered');
+  const btnExpressNot = document.getElementById('btnExpressNot');
 
   const dlgFinish = document.getElementById('dlgFinish');
   const finishText = document.getElementById('finishText');
@@ -470,7 +474,6 @@
   }
 
   function parseEXTokens(s){
-    // zoberie EX1..EX9 aj keď sú v texte s rôznymi oddeľovačmi
     const t = normCode(s).replace(/[,\.;\/\\]+/g, " ");
     const parts = t.split(/\s+/).filter(Boolean);
     const out = [];
@@ -479,6 +482,16 @@
       if(m) out.push("EX"+m[1]);
     }
     return Array.from(new Set(out));
+  }
+
+  function readExpressPicked(){
+    const picked=[];
+    for(let i=1;i<=9;i++){
+      const ex="EX"+i;
+      const cb=document.getElementById("cb_"+ex);
+      if(cb && cb.checked) picked.push(ex);
+    }
+    return picked;
   }
 
   // ===== DB index =====
@@ -587,14 +600,15 @@
   let lastBlob=null;
   let detailsVisible=false;
 
-  // express state
-  let expressSaved=false;
-  let expressSuggested=[];   // from AL
-  let expressPicked=[];      // user picked
+  // Express MUST be confirmed when needed
+  // NA / DELIVERED / NOT
+  let expressStatus = "NA";
+  let expressSuggested=[];
+  let expressPicked=[];
 
   // ===== Report/log =====
-  const LOG_KEY="ids_foto_log_v15";
-  const REP_KEY="ids_rep_name_v15";
+  const LOG_KEY="ids_foto_log_v16";
+  const REP_KEY="ids_rep_name_v16";
 
   function loadLog(){
     try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); }
@@ -717,10 +731,10 @@
     const needExpress = norm(row[IDX_EXPRESS]) !== "";
     const suggestedExpress = parseEXTokens(row[IDX_EXPRESS]);
 
-    return { ap: apN, row, needStand, needB1, needStatic, standCode, b1Code, staticBase, needExpress, suggestedExpress };
+    return { ap: apN, row, needStand, needB1, needStatic, standCode, b1Code, staticBase, needExpress, suggestedExpress, _suffix:"A" };
   }
 
-  // ===== Task rows (only show what is needed) =====
+  // ===== Task rows =====
   function makeTaskRow({label, code, done, onClick}){
     const div = document.createElement("div");
     div.className = "task" + (done ? " done" : "");
@@ -798,7 +812,7 @@
     return div;
   }
 
-  // ===== Photo completion tracking (today by AP + code) =====
+  // ===== Photo completion tracking =====
   function isPhotoDoneToday(ap, type, codeOrBase){
     const day = repDate.value || isoDate(new Date());
     const log = loadLog().filter(x => x.day === day && String(x.ap||"") === ap);
@@ -806,7 +820,7 @@
     if(type==="exact"){
       return log.some(x => normCode(x.photoCode) === normCode(codeOrBase));
     }
-    if(type==="base"){ // static base
+    if(type==="base"){
       const base = normCode(codeOrBase);
       return log.some(x => normCode((x.photoCode||"").replace(/[A-Z]$/,"")) === base);
     }
@@ -828,8 +842,6 @@
       const cb = document.createElement("input");
       cb.type = "checkbox";
       cb.id = id;
-
-      // pred-zaškrtnúť podľa návrhu
       cb.checked = suggested.includes(ex);
 
       const lab = document.createElement("label");
@@ -842,16 +854,6 @@
     });
   }
 
-  function readExpressPicked(){
-    const picked=[];
-    for(let i=1;i<=9;i++){
-      const ex="EX"+i;
-      const cb=document.getElementById("cb_"+ex);
-      if(cb && cb.checked) picked.push(ex);
-    }
-    return picked;
-  }
-
   // ===== Render tasks =====
   function updateAllDoneState(){
     if(!currentTasks) return;
@@ -861,9 +863,11 @@
     const doneStand = !t.needStand || isPhotoDoneToday(t.ap,"exact",t.standCode);
     const doneB1    = !t.needB1    || isPhotoDoneToday(t.ap,"exact",t.b1Code);
     const doneStat  = !t.needStatic|| isPhotoDoneToday(t.ap,"base",t.staticBase);
-    const doneExpr  = !t.needExpress || expressSaved; // express dobrovoľne, ale ak bol "needExpress" v DB, stále je to len možnosť — nezablokuje all done
-    // ✅ express nemá blokovať „všetko hotové“
-    const allDone = doneStand && doneB1 && doneStat;
+
+    // ✅ Express: ak je potrebný (AL má text), MUSÍ byť potvrdený (DELIVERED alebo NOT)
+    const doneExpr  = !t.needExpress || (expressStatus !== "NA");
+
+    const allDone = doneStand && doneB1 && doneStat && doneExpr;
 
     if(allDone && !detailsVisible) showAllDoneOnly();
     else showMainUi();
@@ -873,7 +877,7 @@
     const t = currentTasks;
     taskList.innerHTML = "";
 
-    // ✅ len to, čo treba fotiť (žiadne sivé = nič nezobrazujeme)
+    // ✅ zobraz len to, čo sa má fotiť
     if(t.needStand && t.standCode){
       const done = isPhotoDoneToday(t.ap,"exact",t.standCode);
       taskList.appendChild(makeTaskRow({
@@ -909,17 +913,29 @@
       taskList.appendChild(makeStaticRow(t, done));
     }
 
-    // express blok len ak je niečo v AL (ale dobrovoľné)
+    // Express blok len ak je niečo v AL
     if(t.needExpress){
       expressBlock.style.display="block";
-      btnExpressToggle.textContent = expressSaved ? "Express uložený" : "Express";
-      btnExpressToggle.style.background = expressSaved ? "var(--greenBg)" : "#e9e9e9";
-      btnExpressToggle.style.color = expressSaved ? "var(--green)" : "#111";
+
+      if(expressStatus === "DELIVERED"){
+        btnExpressToggle.textContent = "Express: odovzdaný";
+        btnExpressToggle.style.background = "var(--greenBg)";
+        btnExpressToggle.style.color = "var(--green)";
+      }else if(expressStatus === "NOT"){
+        btnExpressToggle.textContent = "Express: neodovzdaný";
+        btnExpressToggle.style.background = "#e9e9e9";
+        btnExpressToggle.style.color = "#111";
+      }else{
+        btnExpressToggle.textContent = "Express";
+        btnExpressToggle.style.background = "#e9e9e9";
+        btnExpressToggle.style.color = "#111";
+      }
+
     }else{
       expressBlock.style.display="none";
       expressArea.style.display="none";
       expressExtra.value = "";
-      expressSaved=false;
+      expressStatus="NA";
       expressSuggested=[];
       expressPicked=[];
     }
@@ -980,23 +996,27 @@
     const ap = currentTasks.ap;
     const posters = currentTasks.row ? getPostersFromRow(currentTasks.row) : [];
 
-    // poznámka (dole) + express info (ak uložený)
+    // poznámka + express status (len ak je potvrdený)
     const noteParts = [];
     const n = norm(noteText.value);
     if(n) noteParts.push(n);
 
-    if(expressSaved){
-      const picked = expressPicked.join(" ");
-      const extra = norm(expressExtra.value);
-      if(picked || extra){
-        let s = "EXPRESS: " + (picked || "");
-        if(extra) s += (picked ? " | " : " ") + extra;
-        noteParts.push(s.trim());
+    if(currentTasks.needExpress){
+      if(expressStatus === "DELIVERED"){
+        const picked = (expressPicked||[]).join(" ");
+        const extra = norm(expressExtra.value);
+        let s = "EXPRESS: " + (picked || "ODOVZDANÝ");
+        if(extra) s += " | " + extra;
+        noteParts.push(s);
+      } else if(expressStatus === "NOT"){
+        const extra = norm(expressExtra.value);
+        let s = "EXPRESS: NEODOVZDANÝ";
+        if(extra) s += " | " + extra;
+        noteParts.push(s);
       }
     }
 
     const note = noteParts.join(" | ");
-
     addLogEntry(ap, currentPhotoCode, posters, note, filename);
 
     lastBlob=null;
@@ -1009,14 +1029,19 @@
   btnExpressToggle.addEventListener("click", ()=>{
     const show = (expressArea.style.display !== "block");
     expressArea.style.display = show ? "block" : "none";
-    if(show){
-      renderExpressUI();
-    }
+    if(show) renderExpressUI();
   });
 
-  btnSaveExpress.addEventListener("click", ()=>{
+  btnExpressDelivered.addEventListener("click", ()=>{
     expressPicked = readExpressPicked();
-    expressSaved = true;
+    expressStatus = "DELIVERED";
+    expressArea.style.display="none";
+    renderTasks();
+  });
+
+  btnExpressNot.addEventListener("click", ()=>{
+    expressPicked = [];
+    expressStatus = "NOT";
     expressArea.style.display="none";
     renderTasks();
   });
@@ -1028,7 +1053,10 @@
     if(t.needStand && t.standCode && !isPhotoDoneToday(t.ap,"exact",t.standCode)) miss.push("stojan");
     if(t.needB1 && t.b1Code && !isPhotoDoneToday(t.ap,"exact",t.b1Code)) miss.push("B1");
     if(t.needStatic && t.staticBase && !isPhotoDoneToday(t.ap,"base",t.staticBase)) miss.push("statický");
-    // express zámerne nerátame ako "chýba"
+
+    // ✅ express je povinné potvrdiť (ak needExpress)
+    if(t.needExpress && expressStatus === "NA") miss.push("express");
+
     return miss;
   }
 
@@ -1062,7 +1090,7 @@
     currentPhotoCode="";
     lastBlob=null;
 
-    expressSaved=false;
+    expressStatus="NA";
     expressSuggested=[];
     expressPicked=[];
     expressExtra.value="";
@@ -1096,12 +1124,11 @@
     }
 
     currentTasks = t;
-    currentTasks._suffix = "A";
 
     currentPhotoCode="";
     lastBlob=null;
 
-    expressSaved=false;
+    expressStatus="NA";
     expressSuggested = t.suggestedExpress || [];
     expressPicked=[];
     expressExtra.value="";
