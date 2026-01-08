@@ -3,312 +3,247 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>IDS Foto (offline)</title>
+  <title>IDS Foto</title>
   <link rel="manifest" href="manifest.json">
   <style>
-    body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:16px;max-width:860px}
-    h1{font-size:20px;margin:0 0 10px}
-    .muted{color:#666;font-size:13px;line-height:1.35}
-    .card{border:1px solid #ddd;border-radius:16px;padding:14px;margin:12px 0}
-    .bigbtn{
-      width:100%;
-      padding:16px 14px;
-      border-radius:16px;
-      border:1px solid #111;
-      background:#111;
-      color:#fff;
-      font-size:18px;
-      font-weight:800;
-      letter-spacing:.2px;
+    body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:14px;max-width:520px}
+    .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:10px}
+    .iconBtn{
+      border:1px solid #ddd;border-radius:18px;padding:18px 10px;
+      background:#fff;font-weight:800;font-size:15px;text-align:center;
+      display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;
+      user-select:none
     }
-    .bigbtn:disabled{opacity:.45}
-    .btn{
-      padding:12px 14px;
-      border-radius:14px;
-      border:1px solid #ccc;
-      background:#fff;
-      font-size:16px;
-      font-weight:700;
-    }
-    .btn:disabled{opacity:.45}
-    .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .icon{font-size:34px;line-height:1}
+    .iconBtn:active{transform:scale(.99)}
+    .iconBtn:disabled{opacity:.45}
     .badge{display:inline-block;padding:6px 12px;border-radius:999px;background:#f2f2f2;font-weight:800}
-    input{
-      width:100%;
-      padding:14px 12px;
-      border-radius:14px;
-      border:1px solid #ccc;
-      font-size:16px;
-    }
-    video{width:100%;max-width:560px;border-radius:14px;border:1px solid #eee;background:#000}
-    img{width:100%;max-width:560px;border-radius:14px;border:1px solid #eee}
-    .sp8{height:8px}
-    .sp12{height:12px}
-    .ok{color:#0a7a2f;font-weight:800}
-    .bad{color:#b00020;font-weight:800}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+    .btn{padding:12px 14px;border-radius:14px;border:1px solid #ccc;background:#fff;font-weight:800}
+    .btn.primary{background:#111;color:#fff;border-color:#111}
+    video,img{width:100%;border-radius:16px;border:1px solid #eee;background:#000;margin-top:12px}
+    dialog{border:none;border-radius:16px;padding:14px;max-width:420px;width:92vw}
+    dialog::backdrop{background:rgba(0,0,0,.45)}
+    input{width:100%;padding:12px 12px;border-radius:14px;border:1px solid #ccc;font-size:16px}
+    .tiny{font-size:12px;color:#666;margin-top:8px}
   </style>
 </head>
 <body>
-  <h1>IDS Foto podľa kódu</h1>
-  <div class="muted">
-    1) Skenovať alebo zadať kód → 2) Odfotiť → 3) Uložiť / Zdieľať.<br>
-    Pozn.: uloženie ide ako súbor <span class="badge">KÓD.jpg</span> (zvyčajne do Downloads).
+
+  <div>Kód: <span id="codeOut" class="badge">—</span></div>
+
+  <div class="grid">
+    <button id="btnScan" class="iconBtn">
+      <div class="icon">📷</div>
+      <div>Skenovať</div>
+    </button>
+
+    <button id="btnManual" class="iconBtn">
+      <div class="icon">⌨️</div>
+      <div>Zadať</div>
+    </button>
+
+    <button id="btnPhoto" class="iconBtn" disabled>
+      <div class="icon">📸</div>
+      <div>Foto</div>
+    </button>
   </div>
 
-  <div class="card">
-    <div class="muted">Aktuálny kód</div>
-    <div style="font-size:20px;margin:6px 0 12px">
-      <span id="codeOut" class="badge">—</span>
-    </div>
-
-    <button id="btnStartScan" class="bigbtn">SKENOVAŤ</button>
-    <div class="sp12"></div>
-
-    <div id="scanArea" style="display:none">
-      <video id="video" playsinline></video>
-      <canvas id="canvas" style="display:none"></canvas>
-      <div class="sp8"></div>
-      <button id="btnStopScan" class="btn" style="width:100%">Zastaviť skener</button>
-      <div class="sp8"></div>
-    </div>
-
-    <div class="muted">…alebo zadať ručne (môže byť text aj čísla)</div>
-    <div class="sp8"></div>
-    <input id="manualCode" placeholder="napr. 8544 alebo ABC-8544" />
-    <div class="sp8"></div>
-    <button id="btnUseManual" class="btn" style="width:100%">Použiť zadaný kód</button>
-
-    <div class="sp12"></div>
-    <div id="scanStatus" class="muted">Skener je vypnutý.</div>
-  </div>
-
-  <div class="card">
-    <button id="btnTakePhoto" class="bigbtn" disabled>ODFOTIŤ</button>
-    <div class="sp12"></div>
-
-    <div class="btn-row">
-      <button id="btnRetake" class="btn" disabled>Fotiť znova</button>
-      <button id="btnShare" class="btn" disabled>Zdieľať</button>
-    </div>
-
-    <div class="sp12"></div>
-    <button id="btnSave" class="bigbtn" disabled>ULOŽIŤ</button>
-
-    <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none" />
-
-    <div class="sp12"></div>
-    <div id="photoStatus" class="muted">Najprv nastav kód.</div>
-
-    <div class="sp12"></div>
-    <div id="previewWrap" style="display:none">
-      <img id="preview" alt="Náhľad fotky" />
+  <div id="scanWrap" style="display:none">
+    <video id="video" playsinline></video>
+    <canvas id="canvas" style="display:none"></canvas>
+    <div class="row">
+      <button id="btnStop" class="btn" style="flex:1">Stop</button>
     </div>
   </div>
 
-  <script>
-    // Offline (PWA)
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+  <img id="preview" style="display:none" alt="Náhľad" />
+
+  <div id="afterPhoto" class="row" style="display:none">
+    <button id="btnOk" class="btn primary" style="flex:1">OK</button>
+    <button id="btnRetake" class="btn" style="flex:1">Znova</button>
+    <button id="btnShare" class="btn" style="flex:1">Zdieľať</button>
+  </div>
+
+  <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none" />
+
+  <dialog id="dlg">
+    <div style="font-weight:900;margin-bottom:10px">Zadať kód</div>
+    <input id="manualText" placeholder="napr. 8544 alebo ABC-8544" />
+    <div class="row">
+      <button id="dlgOk" class="btn primary" style="flex:1">OK</button>
+      <button id="dlgCancel" class="btn" style="flex:1">Zrušiť</button>
+    </div>
+    <div class="tiny">Tip: môže byť aj text, nielen čísla.</div>
+  </dialog>
+
+<script>
+  // PWA offline
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+  }
+
+  const codeOut = document.getElementById('codeOut');
+  const btnScan = document.getElementById('btnScan');
+  const btnManual = document.getElementById('btnManual');
+  const btnPhoto = document.getElementById('btnPhoto');
+
+  const scanWrap = document.getElementById('scanWrap');
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const btnStop = document.getElementById('btnStop');
+
+  const photoInput = document.getElementById('photoInput');
+  const preview = document.getElementById('preview');
+  const afterPhoto = document.getElementById('afterPhoto');
+  const btnOk = document.getElementById('btnOk');
+  const btnRetake = document.getElementById('btnRetake');
+  const btnShare = document.getElementById('btnShare');
+
+  const dlg = document.getElementById('dlg');
+  const manualText = document.getElementById('manualText');
+  const dlgOk = document.getElementById('dlgOk');
+  const dlgCancel = document.getElementById('dlgCancel');
+
+  let currentCode = "";
+  let stream = null;
+  let scanning = false;
+  let lastBlob = null;
+
+  function safeName(s){
+    return String(s || "").trim().replace(/[\\/:*?"<>|]+/g, "_");
+  }
+  function setCode(v){
+    currentCode = String(v || "").trim();
+    codeOut.textContent = currentCode || "—";
+    btnPhoto.disabled = !currentCode;
+  }
+  function stopStream(){
+    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+  }
+  function stopScan(){
+    scanning = false;
+    scanWrap.style.display = "none";
+    stopStream();
+  }
+
+  async function startScan(){
+    if (!('BarcodeDetector' in window)) {
+      // fallback: rovno otvor ručný vstup
+      dlg.showModal();
+      setTimeout(()=>manualText.focus(), 50);
+      return;
     }
+    scanning = true;
+    scanWrap.style.display = "block";
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({
+        video:{ facingMode:{ ideal:"environment" } }, audio:false
+      });
+      video.srcObject = stream;
+      await video.play();
 
-    // UI
-    const btnStartScan = document.getElementById('btnStartScan');
-    const btnStopScan  = document.getElementById('btnStopScan');
-    const scanStatus   = document.getElementById('scanStatus');
-    const scanArea     = document.getElementById('scanArea');
+      const detector = new BarcodeDetector({ formats:["code_128","ean_13","ean_8","qr_code","code_39","upc_a","upc_e"] });
 
-    const manualCode   = document.getElementById('manualCode');
-    const btnUseManual = document.getElementById('btnUseManual');
-    const codeOut      = document.getElementById('codeOut');
+      const loop = async () => {
+        if(!scanning) return;
+        const w = video.videoWidth || 640;
+        const h = video.videoHeight || 480;
+        canvas.width = w; canvas.height = h;
+        ctx.drawImage(video, 0, 0, w, h);
 
-    const btnTakePhoto = document.getElementById('btnTakePhoto');
-    const btnRetake    = document.getElementById('btnRetake');
-    const btnSave      = document.getElementById('btnSave');
-    const btnShare     = document.getElementById('btnShare');
-    const photoInput   = document.getElementById('photoInput');
-    const photoStatus  = document.getElementById('photoStatus');
-    const previewWrap  = document.getElementById('previewWrap');
-    const preview      = document.getElementById('preview');
-
-    const video  = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const ctx    = canvas.getContext('2d', { willReadFrequently: true });
-
-    // State
-    let currentCode = "";
-    let stream = null;
-    let scanning = false;
-    let lastBlob = null;
-
-    function setCode(code){
-      currentCode = String(code || "").trim();
-      codeOut.textContent = currentCode || "—";
-      btnTakePhoto.disabled = !currentCode;
-      photoStatus.textContent = currentCode
-        ? "Kód je nastavený. Klikni ODFOTIŤ."
-        : "Najprv nastav kód.";
-    }
-
-    function stopStream(){
-      if (stream){
-        stream.getTracks().forEach(t => t.stop());
-        stream = null;
-      }
-    }
-
-    function stopScan(msg){
-      scanning = false;
-      scanArea.style.display = "none";
-      btnStartScan.disabled = false;
-      btnStopScan.disabled = true;
-      stopStream();
-      scanStatus.textContent = msg || "Skener je vypnutý.";
-    }
-
-    async function startScan(){
-      if (!('BarcodeDetector' in window)) {
-        scanStatus.innerHTML = '<span class="bad">Tvoj prehliadač nepodporuje skener.</span> Použi ručný vstup.';
-        return;
-      }
-
-      scanning = true;
-      btnStartScan.disabled = true;
-      btnStopScan.disabled = false;
-      scanArea.style.display = "block";
-      scanStatus.textContent = "Spúšťam kameru…";
-
-      try{
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" } },
-          audio: false
-        });
-        video.srcObject = stream;
-        await video.play();
-
-        scanStatus.textContent = "Skenujem…";
-        const detector = new BarcodeDetector({ formats: ["code_128","ean_13","ean_8","qr_code","code_39","upc_a","upc_e"] });
-
-        const loop = async () => {
-          if (!scanning) return;
-
-          const w = video.videoWidth || 640;
-          const h = video.videoHeight || 480;
-          canvas.width = w;
-          canvas.height = h;
-          ctx.drawImage(video, 0, 0, w, h);
-
-          try{
-            const barcodes = await detector.detect(canvas);
-            if (barcodes && barcodes.length){
-              const raw = (barcodes[0].rawValue || "").trim();
-              if (raw){
-                setCode(raw);
-                stopScan("Nájdené: " + raw);
-                return;
-              }
+        try{
+          const codes = await detector.detect(canvas);
+          if(codes && codes.length){
+            const raw = (codes[0].rawValue || "").trim();
+            if(raw){
+              setCode(raw);
+              stopScan();
             }
-          }catch(e){}
-
-          requestAnimationFrame(loop);
-        };
-
+          }
+        }catch(e){}
         requestAnimationFrame(loop);
+      };
+      requestAnimationFrame(loop);
 
-      }catch(err){
-        stopScan("Kamera sa nedá spustiť (povolenia / HTTPS).");
-      }
+    }catch(e){
+      stopScan();
+      dlg.showModal();
+      setTimeout(()=>manualText.focus(), 50);
     }
+  }
 
-    btnStartScan.addEventListener('click', startScan);
-    btnStopScan.addEventListener('click', () => stopScan("Skener zastavený."));
+  function downloadBlob(blob, filename){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  }
 
-    btnUseManual.addEventListener('click', () => {
-      const v = manualCode.value.trim();
-      if (!v) return;
-      setCode(v);
-      scanStatus.innerHTML = '<span class="ok">Použitý ručný kód:</span> ' + v;
-    });
+  btnScan.addEventListener('click', startScan);
+  btnStop.addEventListener('click', stopScan);
 
-    manualCode.addEventListener('keydown', (e) => {
-      if (e.key === "Enter") btnUseManual.click();
-    });
+  btnManual.addEventListener('click', ()=>{
+    dlg.showModal();
+    manualText.value = currentCode;
+    setTimeout(()=>manualText.focus(), 50);
+  });
 
-    btnTakePhoto.addEventListener('click', () => {
-      if (!currentCode){
-        alert("Najprv nastav kód (sken alebo ručne).");
-        return;
-      }
-      photoInput.value = "";
-      photoInput.click();
-    });
+  dlgOk.addEventListener('click', ()=>{
+    const v = manualText.value.trim();
+    if(v) setCode(v);
+    dlg.close();
+  });
+  dlgCancel.addEventListener('click', ()=> dlg.close());
 
-    btnRetake.addEventListener('click', () => {
-      lastBlob = null;
-      previewWrap.style.display = "none";
-      preview.src = "";
-      btnSave.disabled = true;
-      btnShare.disabled = true;
-      btnRetake.disabled = true;
-      photoStatus.textContent = "OK, odfoť znova.";
-      photoInput.value = "";
-      photoInput.click();
-    });
+  btnPhoto.addEventListener('click', ()=>{
+    if(!currentCode) return;
+    photoInput.value = "";
+    photoInput.click();
+  });
 
-    photoInput.addEventListener('change', () => {
-      const file = photoInput.files && photoInput.files[0];
-      if (!file) return;
+  photoInput.addEventListener('change', ()=>{
+    const f = photoInput.files && photoInput.files[0];
+    if(!f) return;
+    lastBlob = f;
+    preview.src = URL.createObjectURL(f);
+    preview.style.display = "block";
+    afterPhoto.style.display = "flex";
+    btnShare.disabled = !(navigator.canShare && navigator.canShare({ files:[f] }));
+  });
 
-      lastBlob = file;
-      preview.src = URL.createObjectURL(file);
-      previewWrap.style.display = "block";
+  btnRetake.addEventListener('click', ()=>{
+    lastBlob = null;
+    preview.style.display = "none";
+    preview.src = "";
+    afterPhoto.style.display = "none";
+    photoInput.value = "";
+    photoInput.click();
+  });
 
-      btnSave.disabled = false;
-      btnRetake.disabled = false;
-      btnShare.disabled = !(navigator.canShare && navigator.canShare({ files: [file] }));
+  // OK = rovno stiahnuť
+  btnOk.addEventListener('click', ()=>{
+    if(!currentCode || !lastBlob) return;
+    const filename = safeName(currentCode) + ".jpg";
+    downloadBlob(lastBlob, filename);
+  });
 
-      photoStatus.textContent = "Skontroluj fotku. Potom ULOŽIŤ alebo ZDIEĽAŤ, prípadne Fotiť znova.";
-    });
+  // Zdieľať = vyber OneDrive ručne (najjednoduchšie)
+  btnShare.addEventListener('click', async ()=>{
+    if(!currentCode || !lastBlob) return;
+    try{
+      const filename = safeName(currentCode) + ".jpg";
+      const file = new File([lastBlob], filename, { type:lastBlob.type || "image/jpeg" });
+      await navigator.share({ title:"Foto plochy", files:[file] });
+    }catch(e){}
+  });
 
-    function downloadBlob(blob, filename){
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
-    }
-
-    btnSave.addEventListener('click', () => {
-      if (!currentCode || !lastBlob){
-        alert("Chýba kód alebo fotka.");
-        return;
-      }
-      const safe = currentCode.replace(/[\\/:*?"<>|]+/g, "_"); // bezpečný názov súboru
-      const filename = `${safe}.jpg`;
-      downloadBlob(lastBlob, filename);
-      photoStatus.innerHTML = '<span class="ok">Uložené:</span> ' + filename + ' (zvyčajne v Downloads).';
-    });
-
-    btnShare.addEventListener('click', async () => {
-      if (!currentCode || !lastBlob) return;
-      const safe = currentCode.replace(/[\\/:*?"<>|]+/g, "_");
-      const filename = `${safe}.jpg`;
-
-      try{
-        const file = new File([lastBlob], filename, { type: lastBlob.type || "image/jpeg" });
-        await navigator.share({
-          title: "Foto plochy",
-          text: `Foto pre kód ${currentCode}`,
-          files: [file]
-        });
-      }catch(e){}
-    });
-
-    // init
-    btnStopScan.disabled = true;
-    setCode("");
-  </script>
+  setCode("");
+</script>
 </body>
 </html>
