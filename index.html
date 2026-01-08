@@ -7,6 +7,8 @@
   <link rel="manifest" href="manifest.json">
   <style>
     body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:14px;max-width:520px}
+    .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .badge{display:inline-block;padding:6px 12px;border-radius:999px;background:#f2f2f2;font-weight:900}
     .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:10px}
     .iconBtn{
       border:2px solid #111;border-radius:18px;padding:18px 10px;
@@ -17,8 +19,6 @@
     .icon{font-size:34px;line-height:1;color:#111}
     .iconBtn:active{transform:scale(.99)}
     .iconBtn:disabled{opacity:.35}
-    .badge{display:inline-block;padding:6px 12px;border-radius:999px;background:#f2f2f2;font-weight:900}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
     .btn{
       padding:14px 14px;border-radius:16px;border:2px solid #111;background:#fff;font-weight:900;
       width:100%;
@@ -29,13 +29,16 @@
     dialog::backdrop{background:rgba(0,0,0,.45)}
     input{width:100%;padding:12px 12px;border-radius:14px;border:1px solid #ccc;font-size:16px}
     .tiny{font-size:12px;color:#666;margin-top:8px}
+    .posters{margin-top:10px;padding:10px 12px;border:1px dashed #bbb;border-radius:14px}
+    .posters b{display:block;margin-bottom:6px}
+    .pill{display:inline-block;border:1px solid #111;border-radius:999px;padding:6px 10px;margin:4px 6px 0 0;font-weight:900}
   </style>
 </head>
 <body>
 
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+  <div class="top">
     <div>Kód: <span id="codeOut" class="badge">—</span></div>
-    <div id="status" class="badge">Ready</div>
+    <div id="dbOut" class="badge">DB: —</div>
   </div>
 
   <div class="grid">
@@ -55,23 +58,32 @@
     </button>
   </div>
 
+  <div style="margin-top:12px">
+    <button id="btnDb" class="btn">Nahrať DB (Excel)</button>
+    <input id="dbInput" type="file" accept=".xlsx,.xls" style="display:none" />
+  </div>
+
+  <div id="postersBox" class="posters" style="display:none">
+    <b>Plagáty (AG–AM):</b>
+    <div id="postersList"></div>
+  </div>
+
   <div id="scanWrap" style="display:none">
     <video id="video" playsinline></video>
     <canvas id="canvas" style="display:none"></canvas>
-    <div class="row">
+    <div style="margin-top:10px">
       <button id="btnStop" class="btn">Stop</button>
     </div>
   </div>
 
   <img id="preview" style="display:none" alt="Náhľad" />
 
-  <div id="afterPhoto" style="display:none">
-    <div class="row">
-      <button id="btnOk" class="btn primary">OK (stiahnuť)</button>
-    </div>
-    <div class="row">
-      <button id="btnRetake" class="btn">Znova</button>
-    </div>
+  <div id="afterPhoto" style="display:none;margin-top:10px">
+    <button id="btnOk" class="btn primary">OK (stiahnuť)</button>
+    <div style="height:10px"></div>
+    <button id="btnRetake" class="btn">Znova</button>
+    <div style="height:10px"></div>
+    <button id="btnNextScan" class="btn">Skenovať nové</button>
   </div>
 
   <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none" />
@@ -79,26 +91,35 @@
   <dialog id="dlg">
     <div style="font-weight:900;margin-bottom:10px">Zadať kód</div>
     <input id="manualText" placeholder="napr. 8544 alebo ABC-8544" />
-    <div class="row">
+    <div style="margin-top:10px">
       <button id="dlgOk" class="btn primary">OK</button>
-    </div>
-    <div class="row">
+      <div style="height:10px"></div>
       <button id="dlgCancel" class="btn">Zrušiť</button>
     </div>
     <div class="tiny">Tip: môže byť aj text.</div>
   </dialog>
 
+  <!-- Excel parser (SheetJS) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
 <script>
+  // PWA cache
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
   }
 
   const codeOut = document.getElementById('codeOut');
-  const statusEl = document.getElementById('status');
+  const dbOut = document.getElementById('dbOut');
 
   const btnScan = document.getElementById('btnScan');
   const btnManual = document.getElementById('btnManual');
   const btnPhoto = document.getElementById('btnPhoto');
+
+  const btnDb = document.getElementById('btnDb');
+  const dbInput = document.getElementById('dbInput');
+
+  const postersBox = document.getElementById('postersBox');
+  const postersList = document.getElementById('postersList');
 
   const scanWrap = document.getElementById('scanWrap');
   const video = document.getElementById('video');
@@ -111,6 +132,7 @@
   const afterPhoto = document.getElementById('afterPhoto');
   const btnOk = document.getElementById('btnOk');
   const btnRetake = document.getElementById('btnRetake');
+  const btnNextScan = document.getElementById('btnNextScan');
 
   const dlg = document.getElementById('dlg');
   const manualText = document.getElementById('manualText');
@@ -122,15 +144,31 @@
   let scanning = false;
   let lastBlob = null;
 
+  // ===== Excel DB =====
+  // Budeme hľadať podľa stĺpca AP (kód plochy)
+  // a zobraziť AG..AM
+  let dbRows = null;   // 2D array (sheet_to_json header:1)
+  let dbName = "";
+
+  function colToIndex(letter){
+    // A->0, Z->25, AA->26...
+    let s = String(letter).toUpperCase().replace(/[^A-Z]/g,"");
+    let n = 0;
+    for (let i=0;i<s.length;i++) n = n*26 + (s.charCodeAt(i)-64);
+    return n-1;
+  }
+  const IDX_AP = colToIndex("AP");         // 41
+  const IDX_AG = colToIndex("AG");         // 32
+  const IDX_AM = colToIndex("AM");         // 38
+
   function safeName(s){
     return String(s || "").trim().replace(/[\\/:*?"<>|]+/g, "_");
   }
-  function setStatus(t){ statusEl.textContent = t; }
-
   function setCode(v){
     currentCode = String(v || "").trim();
     codeOut.textContent = currentCode || "—";
     btnPhoto.disabled = !currentCode;
+    renderPostersForCode();
   }
 
   function stopStream(){
@@ -142,27 +180,12 @@
     stopStream();
   }
 
-  function resetForNext(){
-    lastBlob = null;
-    preview.style.display = "none";
-    preview.src = "";
-    afterPhoto.style.display = "none";
-    setCode("");
-    setStatus("Ready");
-    // rovno späť na sken
-    startScan();
-  }
-
   async function startScan(){
-    // ak prehliadač nepodporuje detektor, otvoríme ručný input
     if (!('BarcodeDetector' in window)) {
-      setStatus("Manual");
       dlg.showModal();
       setTimeout(()=>manualText.focus(), 50);
       return;
     }
-
-    setStatus("Scan");
     scanning = true;
     scanWrap.style.display = "block";
 
@@ -190,20 +213,16 @@
             if(raw){
               setCode(raw);
               stopScan();
-              // hneď po skene šup na fotoaparát
-              openCamera();
               return;
             }
           }
         }catch(e){}
-
         requestAnimationFrame(loop);
       };
       requestAnimationFrame(loop);
 
     }catch(e){
       stopScan();
-      setStatus("Manual");
       dlg.showModal();
       setTimeout(()=>manualText.focus(), 50);
     }
@@ -211,13 +230,11 @@
 
   function openCamera(){
     if(!currentCode) return;
-    setStatus("Photo");
     photoInput.value = "";
     photoInput.click();
   }
 
   function downloadNow(blob, filename){
-    // najspoľahlivejší "user gesture" download
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -228,56 +245,87 @@
     setTimeout(()=>URL.revokeObjectURL(url), 4000);
   }
 
-  btnScan.addEventListener('click', () => {
-    stopScan();
-    resetUIOnly();
-    startScan();
-  });
-
-  function resetUIOnly(){
+  function resetAfterSave(){
     lastBlob = null;
     preview.style.display = "none";
     preview.src = "";
     afterPhoto.style.display = "none";
-    setStatus("Ready");
+    // kód necháme, aby si videl čo si fotil – ale ty chceš nové skenovanie cez tlačidlo
+    // takže ho vymažeme:
+    setCode("");
   }
 
-  btnStop.addEventListener('click', () => { stopScan(); setStatus("Ready"); });
+  function renderPostersForCode(){
+    if(!dbRows || !currentCode){
+      postersBox.style.display = "none";
+      postersList.innerHTML = "";
+      return;
+    }
+
+    const wanted = currentCode.trim();
+    let found = null;
+
+    // nájdeme riadok, kde AP = kód (porovnávame ako text)
+    for (let r=0; r<dbRows.length; r++){
+      const row = dbRows[r];
+      if(!row) continue;
+      const ap = String(row[IDX_AP] ?? "").trim();
+      if(ap === wanted){
+        found = row;
+        break;
+      }
+    }
+
+    if(!found){
+      postersBox.style.display = "block";
+      postersList.innerHTML = "<span class='pill'>nenájdené</span>";
+      return;
+    }
+
+    // AG..AM
+    const set = new Set();
+    for(let i=IDX_AG;i<=IDX_AM;i++){
+      const v = String(found[i] ?? "").trim();
+      if(!v) continue;
+      // ak je v bunke viac vecí, rozsekneme na medzery/čiarky/;/
+      v.split(/[\s,;\/]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>set.add(x));
+    }
+
+    postersBox.style.display = "block";
+    if(set.size === 0){
+      postersList.innerHTML = "<span class='pill'>—</span>";
+    } else {
+      postersList.innerHTML = Array.from(set).map(x => `<span class="pill">${x}</span>`).join("");
+    }
+  }
+
+  // ===== Events =====
+  btnScan.addEventListener('click', startScan);
+
+  btnStop.addEventListener('click', stopScan);
 
   btnManual.addEventListener('click', ()=>{
-    stopScan();
-    setStatus("Manual");
     dlg.showModal();
     manualText.value = currentCode;
     setTimeout(()=>manualText.focus(), 50);
   });
-
   dlgOk.addEventListener('click', ()=>{
     const v = manualText.value.trim();
-    if(v){
-      setCode(v);
-      dlg.close();
-      // po manuálnom zadaní tiež rovno na foto
-      openCamera();
-    }
+    if(v) setCode(v);
+    dlg.close();
   });
-  dlgCancel.addEventListener('click', ()=>{ dlg.close(); setStatus("Ready"); });
+  dlgCancel.addEventListener('click', ()=> dlg.close());
+  manualText.addEventListener('keydown', (e)=>{ if(e.key==="Enter") dlgOk.click(); });
 
   btnPhoto.addEventListener('click', openCamera);
 
   photoInput.addEventListener('change', ()=>{
     const f = photoInput.files && photoInput.files[0];
-    if(!f){
-      // user zavrel kameru bez fotky → späť na sken
-      setStatus("Ready");
-      startScan();
-      return;
-    }
+    if(!f) return;
     lastBlob = f;
     preview.src = URL.createObjectURL(f);
     preview.style.display = "block";
     afterPhoto.style.display = "block";
-    setStatus("Review");
   });
 
   btnRetake.addEventListener('click', ()=>{
@@ -291,15 +339,44 @@
   btnOk.addEventListener('click', ()=>{
     if(!currentCode || !lastBlob) return;
     const filename = safeName(currentCode) + ".jpg";
-    setStatus("Save");
     downloadNow(lastBlob, filename);
-    // po krátkom odstupe reset + nové skenovanie
-    setTimeout(resetForNext, 250);
+    resetAfterSave();
+  });
+
+  btnNextScan.addEventListener('click', ()=>{
+    resetAfterSave();
+    startScan();
+  });
+
+  // DB upload
+  btnDb.addEventListener('click', ()=> dbInput.click());
+
+  dbInput.addEventListener('change', async ()=>{
+    const file = dbInput.files && dbInput.files[0];
+    if(!file) return;
+
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const sheetName = wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+
+      dbRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+      dbName = file.name;
+
+      dbOut.textContent = "DB: OK";
+      renderPostersForCode();
+    }catch(e){
+      dbRows = null;
+      dbName = "";
+      dbOut.textContent = "DB: ERR";
+      postersBox.style.display = "none";
+    }
   });
 
   // init
   setCode("");
-  setStatus("Ready");
+  dbOut.textContent = "DB: —";
 </script>
 </body>
 </html>
