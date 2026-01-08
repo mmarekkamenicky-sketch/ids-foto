@@ -23,6 +23,7 @@
       --greenBg:#eefaf2;
 
       --red:#b00020;
+      --soft:#f3f3f3;
     }
 
     body{
@@ -43,7 +44,7 @@
       padding:14px 14px;
       border:none;
       font-size:16px;
-      background:#f3f3f3;
+      background:var(--soft);
       font-family: inherit;
       outline:none;
     }
@@ -123,6 +124,7 @@
     .task.done{ background:var(--greenBg); color:var(--green); }
     .task .left{ display:flex; flex-direction:column; gap:8px; min-width:0; flex:1 1 auto; }
     .task .title{ font-weight:900; font-size:16px; line-height:1.1; }
+
     .task .code{
       font-weight:900;
       color:#111;
@@ -135,6 +137,23 @@
       overflow:hidden;
       text-overflow:ellipsis;
       white-space:nowrap;
+    }
+
+    /* campaign hint under task */
+    .task .hint{
+      font-size:12.5px;
+      font-weight:900;
+      line-height:1.25;
+      color:#111;
+      background:rgba(255,255,255,.65);
+      padding:10px 12px;
+      border:none;
+      white-space:pre-wrap;
+      word-break:break-word;
+    }
+    .task.done .hint{
+      background:rgba(255,255,255,.55);
+      color:#0a7a2f;
     }
 
     .suffixWrap{
@@ -163,7 +182,7 @@
 
     /* Express */
     #expressBlock{ display:none; }
-    .subcard{ border:none; padding:12px; background:#f3f3f3; }
+    .subcard{ border:none; padding:12px; background:var(--soft); }
 
     .exGrid{
       display:grid;
@@ -193,7 +212,7 @@
     .miniIcon{
       flex:1;
       border:none;
-      background:#f3f3f3;
+      background:var(--soft);
       padding:10px 10px;
       font-weight:900;
       display:flex;
@@ -239,6 +258,15 @@
 
     /* Notes at very bottom */
     #noteCard{ display:none; margin-top:12px; }
+
+    /* Version */
+    #appVersion{
+      margin-top:12px;
+      text-align:center;
+      color:#999;
+      font-weight:900;
+      font-size:12px;
+    }
   </style>
 </head>
 <body>
@@ -361,6 +389,7 @@
       </div>
     </div>
 
+    <div id="appVersion"></div>
   </div>
 
   <dialog id="dlgFinish">
@@ -376,6 +405,9 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <script>
+  // ===== Version =====
+  const APP_VERSION = "V18";
+
   // ===== DB config =====
   const COL_MAIN_AP = "AP";
   const COL_STAND_FROM = "AG", COL_STAND_TO = "AJ";
@@ -388,7 +420,6 @@
 
   // ===== Elements =====
   const mainUi = document.getElementById('mainUi');
-
   const apInput = document.getElementById('apInput');
   const btnLoad = document.getElementById('btnLoad');
 
@@ -467,12 +498,10 @@
   function fmtTime(ts){
     return String(ts||"").split("T")[1]?.slice(0,8) || "";
   }
-
   function refreshCameraButton(){
     const ok = manualCode.value.trim().length > 0;
     btnCamera.className = ok ? "btn red" : "btn gray";
   }
-
   function parseEXTokens(s){
     const t = normCode(s).replace(/[,\.;\/\\]+/g, " ");
     const parts = t.split(/\s+/).filter(Boolean);
@@ -483,7 +512,6 @@
     }
     return Array.from(new Set(out));
   }
-
   function readExpressPicked(){
     const picked=[];
     for(let i=1;i<=9;i++){
@@ -494,8 +522,20 @@
     return picked;
   }
 
+  function joinCells(row, fromCol, toCol){
+    const from = colToIndex(fromCol);
+    const to = colToIndex(toCol);
+    const parts=[];
+    for(let i=from;i<=to;i++){
+      const v = norm(row[i]);
+      if(v) parts.push(v);
+    }
+    return parts.join("\n");
+  }
+
   // ===== DB index =====
   let dbRows=null, idx=null;
+
   const IDX_AP = colToIndex(COL_MAIN_AP);
   const IDX_STAND_FROM = colToIndex(COL_STAND_FROM);
   const IDX_STAND_TO = colToIndex(COL_STAND_TO);
@@ -607,8 +647,8 @@
   let expressPicked=[];
 
   // ===== Report/log =====
-  const LOG_KEY="ids_foto_log_v16";
-  const REP_KEY="ids_rep_name_v16";
+  const LOG_KEY="ids_foto_log_v18";
+  const REP_KEY="ids_rep_name_v18";
 
   function loadLog(){
     try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); }
@@ -731,11 +771,21 @@
     const needExpress = norm(row[IDX_EXPRESS]) !== "";
     const suggestedExpress = parseEXTokens(row[IDX_EXPRESS]);
 
-    return { ap: apN, row, needStand, needB1, needStatic, standCode, b1Code, staticBase, needExpress, suggestedExpress, _suffix:"A" };
+    const standHint = joinCells(row, "AG", "AJ");
+    const b1Hint = norm(row[colToIndex("AK")]);
+
+    return {
+      ap: apN, row,
+      needStand, needB1, needStatic,
+      standCode, b1Code, staticBase,
+      needExpress, suggestedExpress,
+      standHint, b1Hint,
+      _suffix:"A"
+    };
   }
 
   // ===== Task rows =====
-  function makeTaskRow({label, code, done, onClick}){
+  function makeTaskRow({label, code, hint, done, onClick}){
     const div = document.createElement("div");
     div.className = "task" + (done ? " done" : "");
 
@@ -752,8 +802,15 @@
 
     left.appendChild(title);
     left.appendChild(codeEl);
-    div.appendChild(left);
 
+    if(hint && hint.trim()){
+      const hintEl = document.createElement("div");
+      hintEl.className="hint";
+      hintEl.textContent = hint.trim();
+      left.appendChild(hintEl);
+    }
+
+    div.appendChild(left);
     div.addEventListener("click", onClick);
     return div;
   }
@@ -864,7 +921,6 @@
     const doneB1    = !t.needB1    || isPhotoDoneToday(t.ap,"exact",t.b1Code);
     const doneStat  = !t.needStatic|| isPhotoDoneToday(t.ap,"base",t.staticBase);
 
-    // ✅ Express: ak je potrebný (AL má text), MUSÍ byť potvrdený (DELIVERED alebo NOT)
     const doneExpr  = !t.needExpress || (expressStatus !== "NA");
 
     const allDone = doneStand && doneB1 && doneStat && doneExpr;
@@ -877,12 +933,12 @@
     const t = currentTasks;
     taskList.innerHTML = "";
 
-    // ✅ zobraz len to, čo sa má fotiť
     if(t.needStand && t.standCode){
       const done = isPhotoDoneToday(t.ap,"exact",t.standCode);
       taskList.appendChild(makeTaskRow({
         label:"Fotím stojan",
         code:t.standCode,
+        hint:t.standHint,
         done,
         onClick: ()=>{
           manualCode.value=t.standCode;
@@ -896,8 +952,9 @@
     if(t.needB1 && t.b1Code){
       const done = isPhotoDoneToday(t.ap,"exact",t.b1Code);
       taskList.appendChild(makeTaskRow({
-        label:"Fotím B1",
+        label:"Fotím B1 plagát",
         code:t.b1Code,
+        hint:t.b1Hint,
         done,
         onClick: ()=>{
           manualCode.value=t.b1Code;
@@ -913,7 +970,6 @@
       taskList.appendChild(makeStaticRow(t, done));
     }
 
-    // Express blok len ak je niečo v AL
     if(t.needExpress){
       expressBlock.style.display="block";
 
@@ -996,14 +1052,15 @@
     const ap = currentTasks.ap;
     const posters = currentTasks.row ? getPostersFromRow(currentTasks.row) : [];
 
-    // poznámka + express status (len ak je potvrdený)
     const noteParts = [];
     const n = norm(noteText.value);
     if(n) noteParts.push(n);
 
     if(currentTasks.needExpress){
       if(expressStatus === "DELIVERED"){
-        const picked = (expressPicked||[]).join(" ");
+        // ✅ vždy čítaj aktuálny stav checkboxov
+        const pickedNow = readExpressPicked();
+        const picked = pickedNow.join(" ");
         const extra = norm(expressExtra.value);
         let s = "EXPRESS: " + (picked || "ODOVZDANÝ");
         if(extra) s += " | " + extra;
@@ -1033,8 +1090,25 @@
   });
 
   btnExpressDelivered.addEventListener("click", ()=>{
-    expressPicked = readExpressPicked();
+    if(exGrid.childElementCount === 0) renderExpressUI();
+    const pickedNow = readExpressPicked();
+    expressPicked = pickedNow;
     expressStatus = "DELIVERED";
+
+    // ✅ zapis do reportu aj bez fotenia
+    if(currentTasks){
+      const ap = currentTasks.ap;
+      const posters = currentTasks.row ? getPostersFromRow(currentTasks.row) : [];
+      const extra = norm(expressExtra.value);
+      const noteBase = norm(noteText.value);
+
+      let s = "EXPRESS: " + (pickedNow.join(" ") || "ODOVZDANÝ");
+      if(extra) s += " | " + extra;
+
+      const finalNote = [noteBase, s].filter(Boolean).join(" | ");
+      addLogEntry(ap, "", posters, finalNote, "");
+    }
+
     expressArea.style.display="none";
     renderTasks();
   });
@@ -1042,6 +1116,21 @@
   btnExpressNot.addEventListener("click", ()=>{
     expressPicked = [];
     expressStatus = "NOT";
+
+    // ✅ zapis do reportu aj bez fotenia
+    if(currentTasks){
+      const ap = currentTasks.ap;
+      const posters = currentTasks.row ? getPostersFromRow(currentTasks.row) : [];
+      const extra = norm(expressExtra.value);
+      const noteBase = norm(noteText.value);
+
+      let s = "EXPRESS: NEODOVZDANÝ";
+      if(extra) s += " | " + extra;
+
+      const finalNote = [noteBase, s].filter(Boolean).join(" | ");
+      addLogEntry(ap, "", posters, finalNote, "");
+    }
+
     expressArea.style.display="none";
     renderTasks();
   });
@@ -1053,10 +1142,7 @@
     if(t.needStand && t.standCode && !isPhotoDoneToday(t.ap,"exact",t.standCode)) miss.push("stojan");
     if(t.needB1 && t.b1Code && !isPhotoDoneToday(t.ap,"exact",t.b1Code)) miss.push("B1");
     if(t.needStatic && t.staticBase && !isPhotoDoneToday(t.ap,"base",t.staticBase)) miss.push("statický");
-
-    // ✅ express je povinné potvrdiť (ak needExpress)
     if(t.needExpress && expressStatus === "NA") miss.push("express");
-
     return miss;
   }
 
@@ -1237,6 +1323,8 @@
   repDate.value = (new Date()).toISOString().slice(0,10);
   repName.value = localStorage.getItem(REP_KEY) || "";
   repName.addEventListener('change', ()=> localStorage.setItem(REP_KEY, repName.value.trim()));
+
+  document.getElementById("appVersion").textContent = APP_VERSION;
 
   loadDbXlsx();
 </script>
