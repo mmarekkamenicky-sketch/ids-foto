@@ -16,7 +16,7 @@
       --text:#111;
       --muted:#777;
 
-      --yellow:#ffd400;
+      --yellow:#ffrf00;
       --yellow2:#fff1a8;
 
       --grayCard:#f2f2f2;
@@ -35,10 +35,8 @@
       max-width:720px;
     }
 
-    /* minimalistické zaoblenie */
     *{ border-radius:8px; }
 
-    /* bez orámovania */
     .card{
       border:none;
       padding:12px;
@@ -99,10 +97,21 @@
       padding:18px 16px;
     }
 
+    .linkBtn{
+      border:0;
+      background:transparent;
+      color:#333;
+      font-weight:900;
+      font-size:13px;
+      padding:8px 10px;
+      cursor:pointer;
+      text-decoration:underline;
+    }
+
     .sp{height:10px}
     .sp2{height:14px}
 
-    /* TOP OK – fullscreen-ish */
+    /* ALL DONE */
     #topOkBanner{ display:none; }
     .okFull{
       background:var(--greenBg);
@@ -139,7 +148,6 @@
       font-size:14px;
     }
 
-    /* Task rows */
     .task{
       border:none;
       padding:14px 14px;
@@ -203,11 +211,9 @@
       box-shadow:0 0 0 2px rgba(0,0,0,.12) inset;
     }
 
-    /* After photo */
     #afterPhoto{ display:none; }
     .bigSave{ width:100%; }
 
-    /* Express */
     #expressBlock{ display:none; }
     .subcard{
       border:none;
@@ -215,7 +221,6 @@
       background:#f3f3f3;
     }
 
-    /* Bottom minimal icons */
     .bottomBar{
       margin-top:12px;
       display:flex;
@@ -239,7 +244,6 @@
     }
     .miniIcon span{ font-size:18px; }
 
-    /* Hidden panels */
     #panelScan, #panelReport { display:none; margin-top:12px; }
     video{width:100%; background:#000; border:none; }
 
@@ -256,7 +260,6 @@
     th,td{border-bottom:1px solid #eee;padding:8px 6px;font-size:12.5px;vertical-align:top}
     th{text-align:left;font-size:11px;color:#666}
 
-    /* Mini info (plagáty + adresa) úplne dole */
     #miniInfoWrap{ display:none; }
     .miniInfo{
       background:#f6f6f6;
@@ -300,11 +303,14 @@
       <div class="okIcon">✓</div>
       <div class="okTitle">Všetko hotové</div>
       <div class="okSub">Môžeš pokračovať na ďalšiu plochu</div>
+
       <button id="btnOkNext" class="btn green" style="width:100%;max-width:360px">Nové</button>
+
+      <button id="btnShowDetails" class="linkBtn">Zobraziť podrobnosti</button>
     </div>
   </div>
 
-  <!-- MAIN UI WRAPPER (schová sa keď all done) -->
+  <!-- MAIN UI WRAPPER -->
   <div id="mainUi">
     <div class="card">
       <div class="row">
@@ -324,6 +330,13 @@
 
     <div id="tasksCard" class="card" style="display:none">
       <div id="taskList" style="display:flex;flex-direction:column;gap:10px"></div>
+
+      <div class="sp2"></div>
+
+      <!-- ✅ Poznámka (dobrovoľná) -->
+      <div class="subcard">
+        <textarea id="noteText" placeholder="Poznámka"></textarea>
+      </div>
 
       <div class="sp2"></div>
 
@@ -377,7 +390,7 @@
       <div id="reportWrap" style="display:none"></div>
     </div>
 
-    <!-- ✅ Mini info úplne dole (plagáty + adresa) -->
+    <!-- ✅ Mini info úplne dole -->
     <div id="miniInfoWrap" class="card">
       <div class="miniInfo">
         <div class="miniTitle">Plocha</div>
@@ -433,9 +446,12 @@
 
   const topOkBanner = document.getElementById('topOkBanner');
   const btnOkNext = document.getElementById('btnOkNext');
+  const btnShowDetails = document.getElementById('btnShowDetails');
 
   const tasksCard = document.getElementById('tasksCard');
   const taskList = document.getElementById('taskList');
+
+  const noteText = document.getElementById('noteText');
 
   const expressBlock = document.getElementById('expressBlock');
   const btnExpressToggle = document.getElementById('btnExpressToggle');
@@ -515,10 +531,14 @@
     btnCamera.className = ok ? "btn red" : "btn gray";
   }
 
+  // toggle detail view when all done
+  let detailsVisible = false;
+
   function showAllDoneOnly(){
-    // schovaj všetko, nech nepúta pozornosť
     mainUi.style.display = "none";
     topOkBanner.style.display = "block";
+    detailsVisible = false;
+    btnShowDetails.textContent = "Zobraziť podrobnosti";
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -526,6 +546,19 @@
     topOkBanner.style.display = "none";
     mainUi.style.display = "block";
   }
+
+  btnShowDetails.addEventListener("click", ()=>{
+    // keď sme v režime all-done, nech vie dočasne pozrieť podrobnosti
+    detailsVisible = !detailsVisible;
+    if(detailsVisible){
+      showMainUi();
+      topOkBanner.style.display = "block"; // nech ostane hore dostupné
+      btnShowDetails.textContent = "Skryť podrobnosti";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }else{
+      showAllDoneOnly();
+    }
+  });
 
   // ===== DB index =====
   let dbRows=null, idx=null;
@@ -652,8 +685,8 @@
   }
 
   // ===== Log/report =====
-  const LOG_KEY="ids_foto_log_v13";
-  const REP_KEY="ids_rep_name_v13";
+  const LOG_KEY="ids_foto_log_v14";
+  const REP_KEY="ids_rep_name_v14";
 
   function loadLog(){
     try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); }
@@ -755,15 +788,15 @@
     const row = idx.byAP.get(apN);
     if(!row) return null;
 
-    const needStand = rowHasAnyText(row, IDX_STAND_FROM, IDX_STAND_TO);
-    const needB1 = norm(row[IDX_B1]) !== "";
-    const needStatic = norm(row[IDX_STATIC]) !== "";
+    const needStand = rowHasAnyText(row, colToIndex("AG"), colToIndex("AJ"));
+    const needB1 = norm(row[colToIndex("AK")]) !== "";
+    const needStatic = norm(row[colToIndex("AM")]) !== "";
 
     const standCode = norm(row[colToIndex("B")]);
     const b1Code = norm(row[colToIndex("C")]);
     const staticBase = norm(row[colToIndex("AO")]);
 
-    const needExpress = norm(row[IDX_EXPRESS]) !== "";
+    const needExpress = norm(row[colToIndex("AL")]) !== "";
 
     return { ap: apN, row, needStand, needB1, needStatic, standCode, b1Code, staticBase, needExpress };
   }
@@ -868,7 +901,7 @@
 
     const allDone = doneStand && doneB1 && doneStatic && doneExpress;
 
-    if(allDone){
+    if(allDone && !detailsVisible){
       showAllDoneOnly();
     }else{
       showMainUi();
@@ -985,7 +1018,14 @@
     const ap = currentTasks.ap;
     const row = currentTasks.row;
     const posters = row ? getPostersFromRow(row) : [];
-    const note = (norm(expressTextEl.value)) ? ("EXPRESS: " + norm(expressTextEl.value)) : "";
+
+    // ✅ poznámka ide do reportu (spolu s express textom ak existuje)
+    const noteParts = [];
+    const n = norm(noteText.value);
+    if(n) noteParts.push(n);
+    const ex = norm(expressTextEl.value);
+    if(ex) noteParts.push("EXPRESS: " + ex);
+    const note = noteParts.join(" | ");
 
     addLogEntry(ap, currentPhotoCode, posters, note, filename);
 
@@ -1052,6 +1092,7 @@
   btnOkNext.addEventListener("click", resetToNew);
 
   function resetToNew(){
+    detailsVisible = false;
     showMainUi();
 
     tasksCard.style.display = "none";
@@ -1067,6 +1108,8 @@
     expressArea.style.display = "none";
     expressBlock.style.display = "none";
     btnExpressToggle.textContent = "Express som odovzdal";
+
+    noteText.value = "";
 
     resetSessionFlags();
 
@@ -1087,6 +1130,7 @@
     if(!t){
       tasksCard.style.display = "none";
       miniInfoWrap.style.display = "none";
+      detailsVisible = false;
       showMainUi();
       return;
     }
@@ -1099,10 +1143,10 @@
     expressTextEl.value = "";
     expressArea.style.display = "none";
     btnExpressToggle.textContent = "Express som odovzdal";
+    noteText.value = "";
 
     resetSessionFlags();
 
-    // ✅ mini info dole: adresa + plagáty
     renderMiniInfo(t.row);
 
     tasksCard.style.display = "block";
@@ -1210,8 +1254,8 @@
 
   // ===== Init =====
   repDate.value = (new Date()).toISOString().slice(0,10);
-  repName.value = localStorage.getItem(REP_KEY) || "";
-  repName.addEventListener('change', ()=> localStorage.setItem(REP_KEY, repName.value.trim()));
+  repName.value = localStorage.getItem("ids_rep_name_v14") || "";
+  repName.addEventListener('change', ()=> localStorage.setItem("ids_rep_name_v14", repName.value.trim()));
 
   loadDbXlsx();
 </script>
