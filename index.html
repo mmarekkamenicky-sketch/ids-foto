@@ -372,7 +372,7 @@
     <!-- AP -->
     <div class="card apCard">
       <div class="apStack">
-        <input id="apInput" class="apInput" placeholder="Kód plochy" inputmode="numeric" />
+        <input id="apInput" class="apInput" placeholder="Kód plochy" autocomplete="off" autocapitalize="characters" />
         <button id="btnLoad" class="btn yellow apBtn">Načítať</button>
       </div>
     </div>
@@ -382,7 +382,7 @@
     <!-- Manual / scan result + camera -->
     <div class="card">
       <div class="row">
-        <input id="manualCode" placeholder="Kód (sken / ručne)" />
+        <input id="manualCode" placeholder="Kód (sken / ručne)" autocomplete="off" autocapitalize="characters" />
         <button id="btnCamera" class="btn gray" style="min-width:110px">Foto</button>
       </div>
       <div class="sp"></div>
@@ -1433,3 +1433,4 @@
 </script>
 </body>
 </html>
+
