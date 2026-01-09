@@ -83,23 +83,26 @@
     .sp{height:10px}
     .sp2{height:14px}
 
-    /* HERO AP */
+    /* HERO AP – väčšie + tlačidlo pod tým */
     .hero{ padding:14px; background:#fff; }
-    .heroRow{ display:flex; gap:12px; align-items:stretch; }
+    .heroRow{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      align-items:stretch;
+    }
     .heroInput{
-      font-size:20px !important;
-      padding:18px 16px !important;
+      font-size:28px !important;
+      padding:22px 18px !important;
       font-weight:900;
+      letter-spacing:.01em;
     }
     .heroBtn{
-      min-width:140px !important;
-      font-size:18px !important;
+      width:100%;
+      font-size:20px !important;
       padding:18px 16px !important;
     }
-    .heroBtn.yellow{
-      background: var(--yellow) !important;
-      color:#111 !important;
-    }
+
     .subtleCard{ background:#fff; padding:12px; margin-top:10px; }
 
     .pulse{ animation: pulse 0.75s ease-in-out 2; }
@@ -247,14 +250,6 @@
 
     #panelScan, #panelReport { display:none; margin-top:12px; }
     video{width:100%; background:#000; border:none; }
-
-    dialog{
-      border:none;
-      padding:14px;
-      max-width:460px;
-      width:92vw;
-    }
-    dialog::backdrop{ background:rgba(0,0,0,.45); }
 
     .muted{ color:var(--muted); font-size:12px; }
     table{width:100%;border-collapse:collapse;margin-top:10px}
@@ -423,7 +418,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <script>
-  const APP_VERSION = "V24";
+  const APP_VERSION = "V25";
 
   // columns
   const COL_MAIN_AP = "AP";
@@ -509,6 +504,14 @@
   }
 
   // ===== Elements
+  const topOkBanner = document.getElementById('topOkBanner');
+  const mainUi = document.getElementById('mainUi');
+  const okTitle = document.getElementById('okTitle');
+  const okSub = document.getElementById('okSub');
+  const btnOkNext = document.getElementById('btnOkNext');
+  const btnOkExpress = document.getElementById('btnOkExpress');
+  const btnShowDetails = document.getElementById('btnShowDetails');
+
   const apInput = document.getElementById('apInput');
   const btnLoad = document.getElementById('btnLoad');
 
@@ -702,9 +705,9 @@
     };
   }
 
-  // ===== LOG (for done status + report)
-  const LOG_KEY="ids_foto_log_v24";
-  const REP_KEY="ids_rep_name_v24";
+  // ===== LOG
+  const LOG_KEY="ids_foto_log_v25";
+  const REP_KEY="ids_rep_name_v25";
 
   function loadLog(){ try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); } catch { return []; } }
   function saveLog(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)); }
@@ -739,6 +742,67 @@
     }
     return false;
   }
+
+  // ===== OK banner logic
+  function showOkBanner(mode){
+    // mode: "ALL" | "PHOTOS_ONLY"
+    if(!currentTasks) return;
+
+    const needExpress = !!currentTasks.needExpress;
+    const expressDone = (expressStatus !== "NA");
+
+    if(mode === "ALL"){
+      okTitle.textContent = "Všetko hotové";
+      okSub.textContent = "Môžeš pokračovať na ďalšiu plochu";
+      btnOkExpress.style.display = "none";
+    }else{
+      okTitle.textContent = "Všetko okrem expressov hotové";
+      okSub.textContent = "Ak chceš, potvrď ešte express (voliteľné)";
+      btnOkExpress.style.display = needExpress && !expressDone ? "block" : "none";
+    }
+
+    mainUi.style.display = "none";
+    topOkBanner.style.display = "block";
+    window.scrollTo({ top:0, behavior:"smooth" });
+  }
+
+  function hideOkBannerShowDetails(){
+    topOkBanner.style.display = "none";
+    mainUi.style.display = "block";
+    window.scrollTo({ top:0, behavior:"smooth" });
+  }
+
+  function photosDone(){
+    const t=currentTasks;
+    if(!t) return false;
+
+    if(t.needStand && t.standCode && !isPhotoDoneToday(t.ap,"exact",t.standCode)) return false;
+    if(t.needB1 && t.b1Code && !isPhotoDoneToday(t.ap,"exact",t.b1Code)) return false;
+    if(t.needStatic && t.staticBase && !isPhotoDoneToday(t.ap,"base",t.staticBase)) return false;
+
+    return true;
+  }
+
+  function checkAutoOk(){
+    if(!currentTasks) return;
+
+    if(!photosDone()) return;
+
+    // fotky hotové
+    if(currentTasks.needExpress && expressStatus === "NA"){
+      showOkBanner("PHOTOS_ONLY");
+    }else{
+      showOkBanner("ALL");
+    }
+  }
+
+  btnOkNext.addEventListener("click", ()=> resetToNew());
+  btnShowDetails.addEventListener("click", ()=> hideOkBannerShowDetails());
+  btnOkExpress.addEventListener("click", ()=>{
+    hideOkBannerShowDetails();
+    openExpressArea();
+    window.scrollTo({ top: document.body.scrollHeight, behavior:"smooth" });
+  });
 
   // ===== RENDER TASKS
   function makeTaskRow({label, code, hint, done, onClick}){
@@ -862,7 +926,6 @@
   function renderTasks(){
     const t = currentTasks;
     taskList.innerHTML = "";
-
     if(!t) return;
 
     if(t.needStand && t.standCode){
@@ -917,9 +980,12 @@
         }
       }));
     }
+
+    // po prerenderovaní skús, či už nie sme hotoví
+    checkAutoOk();
   }
 
-  // ===== Finish dialog (photos only)
+  // ===== Finish dialog (manual end)
   function missingListForPhotosOnly(){
     const t=currentTasks;
     const miss=[];
@@ -964,7 +1030,7 @@
     tasksCard.style.display = currentTasks ? "block" : "none";
   });
 
-  // ✅ FIX: Uloží foto aj bez načítanej plochy
+  // Uložiť foto aj bez načítanej plochy
   btnSavePhoto.addEventListener('click', ()=>{
     if(!lastBlob){
       alert("Chýba fotografia.");
@@ -1000,7 +1066,10 @@
     lastBlob=null;
     afterPhoto.style.display="none";
     tasksCard.style.display = currentTasks ? "block" : "none";
-    if(currentTasks) renderTasks();
+
+    if(currentTasks){
+      renderTasks(); // v renderTasks je checkAutoOk()
+    }
   });
 
   // ===== EXPRESS BUTTONS
@@ -1008,47 +1077,49 @@
     expressAreaWrap.style.display="none";
   });
 
+  function logExpress(statusText){
+    if(!currentTasks) return;
+    const ap = currentTasks.ap;
+    const posters = currentTasks.row ? getPostersFromRow(currentTasks.row) : [];
+    const baseNote = norm(noteText.value);
+    const extra = norm(expressExtra.value);
+
+    let s = statusText;
+    if(extra) s += " | " + extra;
+
+    const finalNote = [baseNote, s].filter(Boolean).join(" | ");
+    addLogEntry(ap, "", posters, finalNote, "");
+  }
+
   btnExpressDelivered.addEventListener("click", ()=>{
     expressStatus = "DELIVERED";
     const pickedNow = readExpressPicked();
-    const extra = norm(expressExtra.value);
-    const baseNote = norm(noteText.value);
+    const s = "EXPRESS: " + (pickedNow.join(" ") || "ODOVZDANÝ");
+    logExpress(s);
 
-    if(currentTasks){
-      const ap = currentTasks.ap;
-      const posters = currentTasks.row ? getPostersFromRow(currentTasks.row) : [];
-      let s = "EXPRESS: " + (pickedNow.join(" ") || "ODOVZDANÝ");
-      if(extra) s += " | " + extra;
-      const finalNote = [baseNote, s].filter(Boolean).join(" | ");
-      addLogEntry(ap, "", posters, finalNote, "");
-    }
     expressAreaWrap.style.display="none";
-    renderTasks();
+    renderTasks(); // môže spustiť ALL ok
   });
 
   btnExpressNot.addEventListener("click", ()=>{
     expressStatus = "NOT";
-    const extra = norm(expressExtra.value);
-    const baseNote = norm(noteText.value);
+    logExpress("EXPRESS: NEODOVZDANÝ");
 
-    if(currentTasks){
-      const ap = currentTasks.ap;
-      const posters = currentTasks.row ? getPostersFromRow(currentTasks.row) : [];
-      let s = "EXPRESS: NEODOVZDANÝ";
-      if(extra) s += " | " + extra;
-      const finalNote = [baseNote, s].filter(Boolean).join(" | ");
-      addLogEntry(ap, "", posters, finalNote, "");
-    }
     expressAreaWrap.style.display="none";
-    renderTasks();
+    renderTasks(); // môže spustiť ALL ok (lebo express status už nie je NA)
   });
 
-  // ===== FINISH
+  // ===== Finish (manual)
   btnFinish.addEventListener("click", ()=>{
     if(!currentTasks) return;
     const miss = missingListForPhotosOnly();
     if(miss.length===0){
-      resetToNew();
+      // ak fotky hotové a express ešte NA, ukáž banner „okrem expressov“
+      if(currentTasks.needExpress && expressStatus==="NA"){
+        showOkBanner("PHOTOS_ONLY");
+        return;
+      }
+      showOkBanner("ALL");
       return;
     }
     finishText.textContent = "Chýba: " + miss.join(", ");
@@ -1062,6 +1133,9 @@
   });
 
   function resetToNew(){
+    topOkBanner.style.display="none";
+    mainUi.style.display="block";
+
     tasksCard.style.display="none";
     afterPhoto.style.display="none";
     taskList.innerHTML="";
@@ -1084,6 +1158,7 @@
 
     apInput.value="";
     apInput.focus();
+    window.scrollTo({ top:0, behavior:"smooth" });
   }
 
   // ===== LOAD AP -> show tasks
