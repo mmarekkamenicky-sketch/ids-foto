@@ -1088,32 +1088,49 @@
       photoInput.click();
     }
 
-    photoInput.addEventListener('change', ()=>{
-      const f = photoInput.files && photoInput.files[0];
-      if(!f){
-        lastBlob = null;
-        afterPhoto.style.display="none";
-        tasksCard.style.display = currentTasks ? "block" : "none";
-        alert("Foto sa nevrátilo (Android občas). Skús ešte raz.");
-        return;
-      }
-      lastBlob = f;
-      afterPhoto.style.display="block";
-      tasksCard.style.display="none";
-    });
+    function showSaveIfFileReturned(){
+  const f = photoInput.files && photoInput.files[0];
+  if(f){
+    lastBlob = f;
+    afterPhoto.style.display = "block";
+    tasksCard.style.display = "none";
+    return true;
+  }
+  return false;
+}
 
-    btnRetake.addEventListener('click', ()=>{
-      lastBlob=null;
-      afterPhoto.style.display="none";
-      tasksCard.style.display = currentTasks ? "block" : "none";
-      openCamera();
-    });
+photoInput.addEventListener("change", () => {
+  // normálna cesta: change event vráti file
+  if (showSaveIfFileReturned()) return;
 
-    btnBack.addEventListener('click', ()=>{
-      lastBlob=null;
-      afterPhoto.style.display="none";
+  // fallback: niektoré telefóny síce odfotia, ale change príde "naprázdno"
+  setTimeout(() => {
+    if (showSaveIfFileReturned()) return;
+
+    // posledný pokus po ďalšej chvíli
+    setTimeout(() => {
+      if (showSaveIfFileReturned()) return;
+
+      // stále nič – tak je to prípad, keď kamera nič nevrátila
+      lastBlob = null;
+      afterPhoto.style.display = "none";
       tasksCard.style.display = currentTasks ? "block" : "none";
-    });
+      alert("Foto sa nevrátilo do aplikácie. Skús to v Chrome alebo ako nainštalovanú appku.");
+    }, 500);
+  }, 200);
+});
+
+// Extra poistka: keď sa používateľ vráti späť do appky z fotoaparátu
+window.addEventListener("focus", () => {
+  // ak sme čakali na fotku, niekedy sa objaví až po návrate do focusu
+  if(!lastBlob) showSaveIfFileReturned();
+});
+
+document.addEventListener("visibilitychange", () => {
+  if(document.visibilityState === "visible"){
+    if(!lastBlob) showSaveIfFileReturned();
+  }
+});
 
     btnSavePhoto.addEventListener('click', ()=>{
       if(!lastBlob){ alert("Chýba fotografia."); return; }
@@ -1460,3 +1477,4 @@
   </script>
 </body>
 </html>
+
