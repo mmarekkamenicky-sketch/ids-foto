@@ -83,6 +83,36 @@
     .sp{height:10px}
     .sp2{height:14px}
 
+    /* HERO AP */
+    .hero{
+      padding:14px;
+      background:#fff;
+    }
+    .heroRow{
+      display:flex;
+      gap:12px;
+      align-items:stretch;
+    }
+    .heroInput{
+      font-size:20px !important;
+      padding:18px 16px !important;
+      font-weight:900;
+    }
+    .heroBtn{
+      min-width:140px !important;
+      font-size:18px !important;
+      padding:18px 16px !important;
+    }
+    .heroBtn.yellow{
+      background: var(--yellow) !important;
+      color:#111 !important;
+    }
+    .subtleCard{
+      background:#fff;
+      padding:12px;
+      margin-top:10px;
+    }
+
     /* little pulse effect when scan fills code */
     .pulse{
       animation: pulse 0.75s ease-in-out 2;
@@ -295,19 +325,20 @@
   </div>
 
   <div id="mainUi">
-    <div class="card">
-      <div class="row">
-        <input id="apInput" placeholder="Kód plochy" />
-        <button id="btnLoad" class="btn gray" style="min-width:110px">Načítať</button>
+    <!-- HERO AP -->
+    <div class="card hero">
+      <div class="heroRow">
+        <input id="apInput" class="heroInput" placeholder="Kód plochy" />
+        <button id="btnLoad" class="btn yellow heroBtn">Načítať</button>
       </div>
+    </div>
 
-      <div class="sp"></div>
-
+    <!-- Secondary: sticker code + photo -->
+    <div class="card subtleCard">
       <div class="row">
         <input id="manualCode" placeholder="Kód (sken / ručne)" />
         <button id="btnCamera" class="btn gray" style="min-width:110px">Foto</button>
       </div>
-
       <div class="sp"></div>
       <div id="scanHint" class="muted" style="display:none">Naskenované ✓ Klikni „Foto“.</div>
     </div>
@@ -317,6 +348,7 @@
     <div id="tasksCard" class="card" style="display:none">
       <div id="taskList" style="display:flex;flex-direction:column;gap:10px"></div>
 
+      <!-- Express area -->
       <div id="expressAreaWrap" class="subcard" style="margin-top:12px">
         <div class="muted" id="expressHint" style="margin-bottom:8px"></div>
 
@@ -388,12 +420,14 @@
       <div id="reportWrap" style="display:none"></div>
     </div>
 
+    <!-- Poznámka úplne dole -->
     <div id="noteCard" class="card">
       <div class="subcard">
         <textarea id="noteText" placeholder="Poznámka"></textarea>
       </div>
     </div>
 
+    <!-- Mini info úplne dole -->
     <div id="miniInfoWrap" class="card">
       <div class="miniInfo">
         <div class="miniTitle">Plocha</div>
@@ -424,14 +458,96 @@
 
 <script>
   // ===== Version =====
-  const APP_VERSION = "V21";
+  const APP_VERSION = "V22";
+
+  // ===== DB config (your Excel mapping) =====
+  const COL_MAIN_AP = "AP";
+  const COL_STAND_FROM = "AG", COL_STAND_TO = "AJ";
+  const COL_B1 = "AK";
+  const COL_STATIC = "AM";
+  const COL_EXPRESS = "AL";
+
+  // info fields
+  const COL_CITY="F", COL_STREET="G", COL_HOUSE="H", COL_NAME="J", COL_SURNAME="K", COL_PHARMACY="L";
+
+  function colToIndex(letter){
+    let s = String(letter).toUpperCase().replace(/[^A-Z]/g,"");
+    let n = 0;
+    for (let i=0;i<s.length;i++) n = n*26 + (s.charCodeAt(i)-64);
+    return n-1;
+  }
+  function norm(v){ return String(v ?? "").trim(); }
+  function normCode(v){ return norm(v).toUpperCase(); }
+  function safeName(s){ return norm(s).replace(/[\\/:*?"<>|]+/g, "_"); }
+  function isoDate(d){
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const day = String(d.getDate()).padStart(2,"0");
+    return `${y}-${m}-${day}`;
+  }
+  function fmtTime(ts){
+    return String(ts||"").split("T")[1]?.slice(0,8) || "";
+  }
+  function refreshCameraButton(){
+    const ok = manualCode.value.trim().length > 0;
+    btnCamera.className = ok ? "btn red" : "btn gray";
+  }
+  function parseEXTokens(s){
+    const t = normCode(s).replace(/[,\.;\/\\]+/g, " ");
+    const parts = t.split(/\s+/).filter(Boolean);
+    const out = [];
+    for(const p of parts){
+      const m = /^EX([1-9])$/.exec(p);
+      if(m) out.push("EX"+m[1]);
+    }
+    return Array.from(new Set(out));
+  }
+  function readExpressPicked(){
+    const picked=[];
+    for(let i=1;i<=9;i++){
+      const ex="EX"+i;
+      const cb=document.getElementById("cb_"+ex);
+      if(cb && cb.checked) picked.push(ex);
+    }
+    return picked;
+  }
+  function joinCells(row, fromCol, toCol){
+    const from = colToIndex(fromCol);
+    const to = colToIndex(toCol);
+    const parts=[];
+    for(let i=from;i<=to;i++){
+      const v = norm(row[i]);
+      if(v) parts.push(v);
+    }
+    return parts.join("\n");
+  }
 
   // ===== Elements =====
+  const mainUi = document.getElementById('mainUi');
   const apInput = document.getElementById('apInput');
   const btnLoad = document.getElementById('btnLoad');
+
   const manualCode = document.getElementById('manualCode');
   const btnCamera = document.getElementById('btnCamera');
   const scanHint = document.getElementById('scanHint');
+
+  const topOkBanner = document.getElementById('topOkBanner');
+  const okTitle = document.getElementById('okTitle');
+  const okSub = document.getElementById('okSub');
+  const btnOkNext = document.getElementById('btnOkNext');
+  const btnOkExpress = document.getElementById('btnOkExpress');
+  const btnShowDetails = document.getElementById('btnShowDetails');
+
+  const tasksCard = document.getElementById('tasksCard');
+  const taskList = document.getElementById('taskList');
+
+  const expressAreaWrap = document.getElementById('expressAreaWrap');
+  const expressHint = document.getElementById('expressHint');
+  const exGrid = document.getElementById('exGrid');
+  const expressExtra = document.getElementById('expressExtra');
+  const btnExpressDelivered = document.getElementById('btnExpressDelivered');
+  const btnExpressNot = document.getElementById('btnExpressNot');
+  const btnExpressClose = document.getElementById('btnExpressClose');
 
   const afterPhoto = document.getElementById('afterPhoto');
   const btnSavePhoto = document.getElementById('btnSavePhoto');
@@ -458,17 +574,6 @@
   const btnDeleteDay = document.getElementById('btnDeleteDay');
   const btnDeleteAll = document.getElementById('btnDeleteAll');
 
-  const tasksCard = document.getElementById('tasksCard');
-  const taskList = document.getElementById('taskList');
-
-  const expressAreaWrap = document.getElementById('expressAreaWrap');
-  const expressHint = document.getElementById('expressHint');
-  const exGrid = document.getElementById('exGrid');
-  const expressExtra = document.getElementById('expressExtra');
-  const btnExpressDelivered = document.getElementById('btnExpressDelivered');
-  const btnExpressNot = document.getElementById('btnExpressNot');
-  const btnExpressClose = document.getElementById('btnExpressClose');
-
   const noteCard = document.getElementById('noteCard');
   const noteText = document.getElementById('noteText');
 
@@ -478,41 +583,128 @@
   const miniPharmacy = document.getElementById('miniPharmacy');
   const miniPosters = document.getElementById('miniPosters');
 
-  const topOkBanner = document.getElementById('topOkBanner');
-  const mainUi = document.getElementById('mainUi');
-  const okTitle = document.getElementById('okTitle');
-  const okSub = document.getElementById('okSub');
-  const btnOkNext = document.getElementById('btnOkNext');
-  const btnOkExpress = document.getElementById('btnOkExpress');
-  const btnShowDetails = document.getElementById('btnShowDetails');
-
   const dlgFinish = document.getElementById('dlgFinish');
   const finishText = document.getElementById('finishText');
   const btnFinish = document.getElementById('btnFinish');
   const btnFinishNo = document.getElementById('btnFinishNo');
   const btnFinishYes = document.getElementById('btnFinishYes');
 
-  // ===== Helpers =====
-  function norm(v){ return String(v ?? "").trim(); }
-  function normCode(v){ return norm(v).toUpperCase(); }
-  function safeName(s){ return norm(s).replace(/[\\/:*?"<>|]+/g, "_"); }
-  function isoDate(d){
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2,"0");
-    const day = String(d.getDate()).padStart(2,"0");
-    return `${y}-${m}-${day}`;
-  }
-  function fmtTime(ts){
-    return String(ts||"").split("T")[1]?.slice(0,8) || "";
-  }
-  function refreshCameraButton(){
-    const ok = manualCode.value.trim().length > 0;
-    btnCamera.className = ok ? "btn red" : "btn gray";
+  // ===== Index helpers =====
+  let dbRows=null, idx=null;
+
+  const IDX_AP = colToIndex(COL_MAIN_AP);
+
+  const IDX_STAND_FROM = colToIndex(COL_STAND_FROM);
+  const IDX_STAND_TO = colToIndex(COL_STAND_TO);
+  const IDX_B1 = colToIndex(COL_B1);
+  const IDX_STATIC = colToIndex(COL_STATIC);
+  const IDX_EXPRESS = colToIndex(COL_EXPRESS);
+
+  const IDX_CITY = colToIndex(COL_CITY);
+  const IDX_STREET = colToIndex(COL_STREET);
+  const IDX_HOUSE = colToIndex(COL_HOUSE);
+  const IDX_NAME = colToIndex(COL_NAME);
+  const IDX_SURNAME = colToIndex(COL_SURNAME);
+  const IDX_PHARMACY = colToIndex(COL_PHARMACY);
+
+  async function loadDbXlsx(){
+    try{
+      const res = await fetch("./db.xlsx", { cache:"no-cache" });
+      if(!res.ok) throw new Error("db.xlsx not found");
+      const buf = await res.arrayBuffer();
+      const wb = XLSX.read(buf, { type:"array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      dbRows = XLSX.utils.sheet_to_json(ws, { header:1, defval:"" });
+      buildIndex();
+    }catch(e){
+      dbRows=null; idx=null;
+    }
   }
 
+  function buildIndex(){
+    idx = { byAP:new Map() };
+    if(!dbRows) return;
+    for(const row of dbRows){
+      const ap = normCode(row[IDX_AP]);
+      if(ap) idx.byAP.set(ap, row);
+    }
+  }
+
+  function rowHasAnyText(row, fromIdx, toIdx){
+    for(let i=fromIdx;i<=toIdx;i++){
+      if(norm(row[i]) !== "") return true;
+    }
+    return false;
+  }
+
+  function getPostersFromRow(row){
+    if(!row) return [];
+    const from = colToIndex("AG");
+    const to   = colToIndex("AM");
+    const set = new Set();
+    for(let i=from;i<=to;i++){
+      const v = norm(row[i]);
+      if(!v) continue;
+      v.split(/[\s,;\/]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>set.add(x));
+    }
+    return Array.from(set);
+  }
+
+  function renderMiniInfo(row){
+    if(!row){
+      miniInfoWrap.style.display="none";
+      noteCard.style.display="none";
+      return;
+    }
+    const city = norm(row[IDX_CITY]);
+    const street = norm(row[IDX_STREET]);
+    const house = norm(row[IDX_HOUSE]);
+    const name = norm(row[IDX_NAME]);
+    const surname = norm(row[IDX_SURNAME]);
+    const pharmacy = norm(row[IDX_PHARMACY]);
+
+    const addrParts = [city, street, house].filter(Boolean);
+    miniAddress.textContent = addrParts.length ? addrParts.join(", ") : "—";
+
+    const personParts = [name, surname].filter(Boolean);
+    miniPerson.textContent = personParts.length ? personParts.join(" ") : "—";
+
+    miniPharmacy.textContent = pharmacy ? pharmacy : "—";
+
+    const posters = getPostersFromRow(row);
+    miniPosters.innerHTML="";
+    if(posters.length){
+      posters.forEach(p=>{
+        const d=document.createElement("div");
+        d.className="miniPill";
+        d.textContent=p;
+        miniPosters.appendChild(d);
+      });
+    }else{
+      const d=document.createElement("div");
+      d.className="miniLine";
+      d.textContent="—";
+      miniPosters.appendChild(d);
+    }
+
+    miniInfoWrap.style.display="block";
+    noteCard.style.display="block";
+  }
+
+  // ===== State =====
+  let currentTasks=null;
+  let currentPhotoCode="";
+  let lastBlob=null;
+  let detailsVisible=false;
+
+  // Express state: NA / DELIVERED / NOT
+  let expressStatus = "NA";
+  let expressSuggested=[];
+  let expressPicked=[];
+
   // ===== Report/log =====
-  const LOG_KEY="ids_foto_log_v21";
-  const REP_KEY="ids_rep_name_v21";
+  const LOG_KEY="ids_foto_log_v22";
+  const REP_KEY="ids_rep_name_v22";
 
   function loadLog(){
     try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); }
@@ -593,20 +785,22 @@
     downloadNow(blob, filename);
   }
 
-  // delete
   function deleteLogsForDay(day){
     const all = loadLog();
-    saveLog(all.filter(x => x.day !== day));
+    const keep = all.filter(x => x.day !== day);
+    saveLog(keep);
   }
   function deleteLogsAll(){
     saveLog([]);
   }
+
   btnDeleteDay.addEventListener("click", ()=>{
     const day = repDate.value || isoDate(new Date());
     if(!confirm(`Vymazať report len pre deň ${day}?`)) return;
     deleteLogsForDay(day);
     if(reportWrap.style.display === "block") renderReport();
   });
+
   btnDeleteAll.addEventListener("click", ()=>{
     if(!confirm("Vymazať CELÝ report (všetky dni)?")) return;
     if(!confirm("Naozaj? Toto sa nedá vrátiť späť.")) return;
@@ -614,14 +808,318 @@
     if(reportWrap.style.display === "block") renderReport();
   });
 
-  // ===== Minimal DB (only for posters & mini info) =====
-  // In this V21 snippet I’m keeping DB part minimal. Your previous db.xlsx logic stays the same concept.
-  // If you already have db.xlsx working, keep your V20 DB section; the scanner fix below is independent.
+  // ===== UI banners =====
+  function showBanner(title, sub, showExpressBtn){
+    okTitle.textContent = title;
+    okSub.textContent = sub;
+    btnOkExpress.style.display = showExpressBtn ? "block" : "none";
+
+    mainUi.style.display="none";
+    topOkBanner.style.display="block";
+    detailsVisible=false;
+    btnShowDetails.textContent="Zobraziť podrobnosti";
+    window.scrollTo({ top:0, behavior:"smooth" });
+  }
+  function showMainUi(){
+    topOkBanner.style.display="none";
+    mainUi.style.display="block";
+  }
+
+  btnShowDetails.addEventListener("click", ()=>{
+    detailsVisible = !detailsVisible;
+    if(detailsVisible){
+      showMainUi();
+      topOkBanner.style.display="block";
+      btnShowDetails.textContent="Skryť podrobnosti";
+      window.scrollTo({ top:0, behavior:"smooth" });
+    }else{
+      updateDoneBanners();
+    }
+  });
+
+  btnOkExpress.addEventListener("click", ()=>{
+    showMainUi();
+    topOkBanner.style.display="block";
+    detailsVisible = true;
+    btnShowDetails.textContent="Skryť podrobnosti";
+    openExpressArea();
+    window.scrollTo({ top:0, behavior:"smooth" });
+  });
+
+  // ===== Tasks compute =====
+  function computeTasks(ap){
+    if(!idx) return null;
+    const apN = normCode(ap);
+    const row = idx.byAP.get(apN);
+    if(!row) return null;
+
+    const needStand = rowHasAnyText(row, colToIndex("AG"), colToIndex("AJ"));
+    const needB1 = norm(row[colToIndex("AK")]) !== "";
+    const needStatic = norm(row[colToIndex("AM")]) !== "";
+
+    const standCode = norm(row[colToIndex("B")]);
+    const b1Code = norm(row[colToIndex("C")]);
+    const staticBase = norm(row[colToIndex("AO")]);
+
+    const needExpress = norm(row[colToIndex("AL")]) !== "";
+    const suggestedExpress = parseEXTokens(row[colToIndex("AL")]);
+
+    const standHint = joinCells(row, "AG", "AJ");
+    const b1Hint = norm(row[colToIndex("AK")]);
+
+    return {
+      ap: apN, row,
+      needStand, needB1, needStatic,
+      standCode, b1Code, staticBase,
+      needExpress, suggestedExpress,
+      standHint, b1Hint,
+      _suffix:"A"
+    };
+  }
+
+  function makeTaskRow({label, code, hint, done, onClick}){
+    const div = document.createElement("div");
+    div.className = "task" + (done ? " done" : "");
+
+    const left = document.createElement("div");
+    left.className="left";
+
+    const title = document.createElement("div");
+    title.className="title";
+    title.textContent=label;
+
+    const codeEl = document.createElement("div");
+    codeEl.className="code";
+    codeEl.textContent=code || "—";
+
+    left.appendChild(title);
+    left.appendChild(codeEl);
+
+    if(hint && hint.trim()){
+      const hintEl = document.createElement("div");
+      hintEl.className="hint";
+      hintEl.textContent = hint.trim();
+      left.appendChild(hintEl);
+    }
+
+    div.appendChild(left);
+    div.addEventListener("click", onClick);
+    return div;
+  }
+
+  function makeStaticRow(t, done){
+    const div = document.createElement("div");
+    div.className = "task" + (done ? " done" : "");
+
+    const left = document.createElement("div");
+    left.className="left";
+
+    const title = document.createElement("div");
+    title.className="title";
+    title.textContent="Fotím statický plagát";
+
+    const codeEl = document.createElement("div");
+    codeEl.className="code";
+    codeEl.textContent=t.staticBase || "—";
+
+    const suffixWrap = document.createElement("div");
+    suffixWrap.className="suffixWrap";
+
+    ["A","B","C"].forEach(s=>{
+      const b=document.createElement("div");
+      b.className="suffixBtn" + (t._suffix===s ? " active":"");
+      b.textContent=s;
+      b.addEventListener("click",(ev)=>{
+        ev.stopPropagation();
+        t._suffix = s;
+        renderTasks();
+
+        const base=t.staticBase||"";
+        if(!base) return;
+        manualCode.value = base + s;
+        scanHint.style.display="none";
+        refreshCameraButton();
+        currentPhotoCode = manualCode.value.trim();
+        openCamera(); // user still clicked => ok
+      });
+      suffixWrap.appendChild(b);
+    });
+
+    left.appendChild(title);
+    left.appendChild(codeEl);
+    left.appendChild(suffixWrap);
+    div.appendChild(left);
+
+    div.addEventListener("click", ()=>{
+      const base=t.staticBase||"";
+      if(!base) return;
+      manualCode.value=base;
+      scanHint.style.display="none";
+      refreshCameraButton();
+      currentPhotoCode=base;
+      openCamera();
+    });
+
+    return div;
+  }
+
+  function makeExpressTask(t){
+    const suggested = (t.suggestedExpress||[]);
+    const codeText = suggested.length ? suggested.join(" ") : "—";
+    const done = (expressStatus !== "NA");
+    const hint = "Klikni pre potvrdenie (voliteľné)";
+
+    return makeTaskRow({
+      label: "Express",
+      code: codeText,
+      hint,
+      done,
+      onClick: ()=>{
+        openExpressArea();
+        window.scrollTo({ top: document.body.scrollHeight, behavior:"smooth" });
+      }
+    });
+  }
+
+  // ===== Photo completion tracking =====
+  function isPhotoDoneToday(ap, type, codeOrBase){
+    const day = repDate.value || isoDate(new Date());
+    const log = loadLog().filter(x => x.day === day && String(x.ap||"") === ap);
+
+    if(type==="exact"){
+      return log.some(x => normCode(x.photoCode) === normCode(codeOrBase));
+    }
+    if(type==="base"){
+      const base = normCode(codeOrBase);
+      return log.some(x => normCode((x.photoCode||"").replace(/[A-Z]$/,"")) === base);
+    }
+    return false;
+  }
+
+  // ===== Express area =====
+  function renderExpressUI(){
+    exGrid.innerHTML = "";
+    const suggested = expressSuggested || [];
+    expressHint.textContent = suggested.length ? ("Návrh: " + suggested.join(" ")) : "Bez návrhu";
+
+    const all = ["EX1","EX2","EX3","EX4","EX5","EX6","EX7","EX8","EX9"];
+    all.forEach(ex=>{
+      const id = "cb_" + ex;
+      const wrap = document.createElement("div");
+      wrap.className = "exItem";
+
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.id = id;
+      cb.checked = suggested.includes(ex);
+
+      const lab = document.createElement("label");
+      lab.htmlFor = id;
+      lab.textContent = ex;
+
+      wrap.appendChild(cb);
+      wrap.appendChild(lab);
+      exGrid.appendChild(wrap);
+    });
+  }
+
+  function openExpressArea(){
+    if(!currentTasks || !currentTasks.needExpress) return;
+    expressAreaWrap.style.display = "block";
+    renderExpressUI();
+  }
+
+  btnExpressClose.addEventListener("click", ()=>{
+    expressAreaWrap.style.display = "none";
+  });
+
+  // ===== Banners logic =====
+  function updateDoneBanners(){
+    if(!currentTasks) return;
+
+    const t = currentTasks;
+    const doneStand = !t.needStand || isPhotoDoneToday(t.ap,"exact",t.standCode);
+    const doneB1    = !t.needB1    || isPhotoDoneToday(t.ap,"exact",t.b1Code);
+    const doneStat  = !t.needStatic|| isPhotoDoneToday(t.ap,"base",t.staticBase);
+
+    const photosDone = doneStand && doneB1 && doneStat;
+    if(!photosDone) return;
+
+    if(t.needExpress && expressStatus === "NA"){
+      if(!detailsVisible){
+        showBanner(
+          "Všetko okrem expressov hotové",
+          "Môžeš dať Nové alebo doplniť Express",
+          true
+        );
+      }
+    } else {
+      if(!detailsVisible){
+        showBanner(
+          "Všetko hotové",
+          "Môžeš pokračovať na ďalšiu plochu",
+          false
+        );
+      }
+    }
+  }
+
+  // ===== Render tasks =====
+  function renderTasks(){
+    const t = currentTasks;
+    taskList.innerHTML = "";
+
+    if(!t.needExpress){
+      expressAreaWrap.style.display="none";
+    }
+
+    if(t.needStand && t.standCode){
+      const done = isPhotoDoneToday(t.ap,"exact",t.standCode);
+      taskList.appendChild(makeTaskRow({
+        label:"Fotím stojan",
+        code:t.standCode,
+        hint:t.standHint,
+        done,
+        onClick: ()=>{
+          manualCode.value=t.standCode;
+          scanHint.style.display="none";
+          refreshCameraButton();
+          currentPhotoCode=t.standCode;
+          openCamera();
+        }
+      }));
+    }
+
+    if(t.needB1 && t.b1Code){
+      const done = isPhotoDoneToday(t.ap,"exact",t.b1Code);
+      taskList.appendChild(makeTaskRow({
+        label:"Fotím B1 plagát",
+        code:t.b1Code,
+        hint:t.b1Hint,
+        done,
+        onClick: ()=>{
+          manualCode.value=t.b1Code;
+          scanHint.style.display="none";
+          refreshCameraButton();
+          currentPhotoCode=t.b1Code;
+          openCamera();
+        }
+      }));
+    }
+
+    if(t.needStatic && t.staticBase){
+      const done = isPhotoDoneToday(t.ap,"base",t.staticBase);
+      taskList.appendChild(makeStaticRow(t, done));
+    }
+
+    if(t.needExpress){
+      taskList.appendChild(makeExpressTask(t));
+    }
+
+    updateDoneBanners();
+  }
 
   // ===== Photo flow =====
-  let currentPhotoCode = "";
-  let lastBlob = null;
-
   function openCamera(){
     if(!currentPhotoCode) return;
     photoInput.value="";
@@ -639,15 +1137,14 @@
     setTimeout(()=>URL.revokeObjectURL(url), 4000);
   }
 
+  // FAIL-SAFE for Android: sometimes returns no file
   photoInput.addEventListener('change', ()=>{
     const f = photoInput.files && photoInput.files[0];
-
-    // FAIL-SAFE: niekedy sa Android vráti bez súboru
     if(!f){
       lastBlob = null;
       afterPhoto.style.display="none";
       tasksCard.style.display="block";
-      alert("Foto sa neuložilo (Android to niekedy spraví). Skús ešte raz.");
+      alert("Foto sa nevrátilo (Android občas). Skús ešte raz.");
       return;
     }
 
@@ -670,8 +1167,8 @@
   });
 
   btnSavePhoto.addEventListener('click', ()=>{
-    if(!lastBlob){
-      alert("Chýba fotografia. Skús znova.");
+    if(!lastBlob || !currentTasks){
+      alert("Chýba fotografia alebo plocha.");
       return;
     }
 
@@ -685,17 +1182,184 @@
     const filename = safeName(currentPhotoCode) + ".jpg";
     downloadNow(lastBlob, filename);
 
-    // sem si nechaj tvoju existujúcu logiku addLogEntry(...) z V20 (AP, plagáty, poznámka...)
-    // addLogEntry(...)
+    const ap = currentTasks.ap;
+    const posters = currentTasks.row ? getPostersFromRow(currentTasks.row) : [];
+
+    const noteParts = [];
+    const n = norm(noteText.value);
+    if(n) noteParts.push(n);
+
+    if(currentTasks.needExpress){
+      if(expressStatus === "DELIVERED"){
+        const pickedNow = readExpressPicked();
+        const picked = pickedNow.join(" ");
+        const extra = norm(expressExtra.value);
+        let s = "EXPRESS: " + (picked || "ODOVZDANÝ");
+        if(extra) s += " | " + extra;
+        noteParts.push(s);
+      } else if(expressStatus === "NOT"){
+        const extra = norm(expressExtra.value);
+        let s = "EXPRESS: NEODOVZDANÝ";
+        if(extra) s += " | " + extra;
+        noteParts.push(s);
+      }
+    }
+
+    const note = noteParts.join(" | ");
+    addLogEntry(ap, currentPhotoCode, posters, note, filename);
 
     lastBlob=null;
     afterPhoto.style.display="none";
     tasksCard.style.display="block";
+    renderTasks();
   });
 
-  // ===== Camera button =====
+  // ===== Express actions =====
+  btnExpressDelivered.addEventListener("click", ()=>{
+    if(exGrid.childElementCount === 0) renderExpressUI();
+    const pickedNow = readExpressPicked();
+    expressPicked = pickedNow;
+    expressStatus = "DELIVERED";
+
+    if(currentTasks){
+      const ap = currentTasks.ap;
+      const posters = currentTasks.row ? getPostersFromRow(currentTasks.row) : [];
+      const extra = norm(expressExtra.value);
+      const noteBase = norm(noteText.value);
+
+      let s = "EXPRESS: " + (pickedNow.join(" ") || "ODOVZDANÝ");
+      if(extra) s += " | " + extra;
+
+      const finalNote = [noteBase, s].filter(Boolean).join(" | ");
+      addLogEntry(ap, "", posters, finalNote, "");
+    }
+
+    expressAreaWrap.style.display="none";
+    renderTasks();
+  });
+
+  btnExpressNot.addEventListener("click", ()=>{
+    expressPicked = [];
+    expressStatus = "NOT";
+
+    if(currentTasks){
+      const ap = currentTasks.ap;
+      const posters = currentTasks.row ? getPostersFromRow(currentTasks.row) : [];
+      const extra = norm(expressExtra.value);
+      const noteBase = norm(noteText.value);
+
+      let s = "EXPRESS: NEODOVZDANÝ";
+      if(extra) s += " | " + extra;
+
+      const finalNote = [noteBase, s].filter(Boolean).join(" | ");
+      addLogEntry(ap, "", posters, finalNote, "");
+    }
+
+    expressAreaWrap.style.display="none";
+    renderTasks();
+  });
+
+  // ===== Finish =====
+  function missingListForPhotosOnly(){
+    const t=currentTasks;
+    const miss=[];
+    if(t.needStand && t.standCode && !isPhotoDoneToday(t.ap,"exact",t.standCode)) miss.push("stojan");
+    if(t.needB1 && t.b1Code && !isPhotoDoneToday(t.ap,"exact",t.b1Code)) miss.push("B1");
+    if(t.needStatic && t.staticBase && !isPhotoDoneToday(t.ap,"base",t.staticBase)) miss.push("statický");
+    return miss;
+  }
+
+  btnFinish.addEventListener("click", ()=>{
+    if(!currentTasks) return;
+
+    const miss = missingListForPhotosOnly();
+    if(miss.length===0){
+      resetToNew();
+      return;
+    }
+    finishText.textContent = "Chýba: " + miss.join(", ");
+    dlgFinish.showModal();
+  });
+
+  btnFinishNo.addEventListener("click", ()=> dlgFinish.close());
+  btnFinishYes.addEventListener("click", ()=>{
+    dlgFinish.close();
+    resetToNew();
+  });
+
+  btnOkNext.addEventListener("click", resetToNew);
+
+  function resetToNew(){
+    detailsVisible=false;
+    showMainUi();
+
+    tasksCard.style.display="none";
+    afterPhoto.style.display="none";
+    taskList.innerHTML="";
+    currentTasks=null;
+    currentPhotoCode="";
+    lastBlob=null;
+
+    expressStatus="NA";
+    expressSuggested=[];
+    expressPicked=[];
+    expressExtra.value="";
+    expressAreaWrap.style.display="none";
+
+    noteText.value="";
+    scanHint.style.display="none";
+
+    miniInfoWrap.style.display="none";
+    noteCard.style.display="none";
+
+    apInput.value="";
+    manualCode.value="";
+    refreshCameraButton();
+    apInput.focus();
+  }
+
+  // ===== Load =====
+  btnLoad.addEventListener("click", ()=>{
+    const ap = apInput.value.trim();
+    if(!ap || !idx) return;
+
+    const t = computeTasks(ap);
+    if(!t){
+      tasksCard.style.display="none";
+      miniInfoWrap.style.display="none";
+      noteCard.style.display="none";
+      detailsVisible=false;
+      showMainUi();
+      return;
+    }
+
+    currentTasks = t;
+
+    currentPhotoCode="";
+    lastBlob=null;
+
+    // reset express on new AP
+    expressStatus="NA";
+    expressSuggested = t.suggestedExpress || [];
+    expressPicked=[];
+    expressExtra.value="";
+    expressAreaWrap.style.display="none";
+
+    renderMiniInfo(t.row);
+
+    tasksCard.style.display="block";
+    renderTasks();
+
+    // UX: po načítaní plochy prehoď fokus na kód nálepky
+    manualCode.focus();
+    window.scrollTo({ top:0, behavior:"smooth" });
+  });
+
+  apInput.addEventListener("keydown", (e)=>{ if(e.key==="Enter") btnLoad.click(); });
+
+  // ===== Manual camera button =====
   manualCode.addEventListener("input", ()=>{
-    scanHint.style.display = "none";
+    scanHint.style.display="none";
     refreshCameraButton();
   });
 
@@ -717,7 +1381,7 @@
     panelReport.style.display = (panelReport.style.display==="block") ? "none" : "block";
   });
 
-  // ===== Scan (FIX: after scan do NOT auto-open camera) =====
+  // ===== Scan (FIX: after scan DO NOT auto-open camera) =====
   let stream=null, scanning=false;
 
   function stopStream(){ if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } }
@@ -752,14 +1416,14 @@
             const raw = (codes[0].rawValue || "").trim();
             if(raw){
               manualCode.value = raw;
+              scanHint.style.display = "block";
               refreshCameraButton();
 
               // close scanner
               stopScan();
               panelScan.style.display="none";
 
-              // show hint + pulse on Foto button (user gesture needed)
-              scanHint.style.display = "block";
+              // pulse the Foto button (user must click Foto => reliable on Android)
               btnCamera.classList.add("pulse");
               setTimeout(()=>btnCamera.classList.remove("pulse"), 1200);
 
@@ -781,7 +1445,7 @@
     panelScan.style.display="none";
   });
 
-  // ===== Report toggle =====
+  // ===== Report =====
   btnToggleReport.addEventListener("click", ()=>{
     const vis = reportWrap.style.display==="block";
     if(vis){
@@ -795,12 +1459,18 @@
   });
   btnExportCsv.addEventListener("click", exportCsv);
 
-  // ===== init =====
+  // ===== Init =====
   repDate.value = (new Date()).toISOString().slice(0,10);
   repName.value = localStorage.getItem(REP_KEY) || "";
   repName.addEventListener('change', ()=> localStorage.setItem(REP_KEY, repName.value.trim()));
 
-  document.getElementById("appVersion").textContent = "V21";
+  document.getElementById("appVersion").textContent = APP_VERSION;
+
+  // start
+  loadDbXlsx();
+
+  // default focus
+  apInput.focus();
 </script>
 </body>
 </html>
