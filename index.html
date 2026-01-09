@@ -408,10 +408,11 @@
 
       <div class="sp"></div>
 
-      <!-- Luxus info o ukladaní -->
+      <!-- Lux info o ukladaní -->
       <div class="row" style="align-items:flex-start">
-        <div id="saveTargetInfo" class="muted" style="flex:1; line-height:1.35">
-          —
+        <div style="flex:1">
+          <div id="saveTargetInfo" class="muted" style="line-height:1.35">—</div>
+          <div id="softMsg" class="muted" style="margin-top:6px; display:none; white-space:pre-wrap;"></div>
         </div>
         <button id="btnChangeFolder" class="linkBtn" style="white-space:nowrap">Zmeniť priečinok</button>
       </div>
@@ -497,7 +498,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <script>
-    const APP_VERSION = "V26-LUX";
+    const APP_VERSION = "V26-LUX-SILENT";
 
     /* ===== Service Worker register ===== */
     if ("serviceWorker" in navigator) {
@@ -581,6 +582,7 @@
     const photoInput = document.getElementById('photoInput');
 
     const saveTargetInfo = document.getElementById('saveTargetInfo');
+    const softMsg = document.getElementById('softMsg');
     const btnChangeFolder = document.getElementById('btnChangeFolder');
 
     const btnMiniScan = document.getElementById('btnMiniScan');
@@ -622,6 +624,17 @@
       btnCamera.className = ok ? "btn red" : "btn gray";
     }
 
+    /* ===== Soft message (tichý režim) ===== */
+    function showSoftMsg(text, ms=1600){
+      if(!softMsg) return;
+      softMsg.textContent = text || "";
+      softMsg.style.display = text ? "block" : "none";
+      if(text){
+        clearTimeout(showSoftMsg._t);
+        showSoftMsg._t = setTimeout(()=>{ softMsg.style.display="none"; }, ms);
+      }
+    }
+
     /* ===== Basic download fallback ===== */
     function downloadNow(blob, filename){
       const url = URL.createObjectURL(blob);
@@ -635,15 +648,13 @@
     }
 
     /* =========================================================
-       ✅ LUX SAVE: IDS Foto / YYYY-MM-DD (auto)
-       - root handle: IndexedDB
-       - posledný cieľ: localStorage (kvôli UI)
+       ✅ LUX SAVE: IDS Foto / YYYY-MM-DD (auto, ticho)
     ========================================================= */
     const FS_DB_NAME = "ids_foto_fs";
     const FS_STORE = "kv";
     const FS_KEY_ROOT = "rootDirHandle";
 
-    const LUX_LAST_TARGET_KEY = "ids_last_target_v26"; // "IDS Foto/2026-01-09"
+    const LUX_LAST_TARGET_KEY = "ids_last_target_v26";
     const LUX_LAST_DAY_KEY    = "ids_last_day_v26";
 
     function idbOpen(){
@@ -691,6 +702,8 @@
     }
 
     async function getOrPickRootDir(forcePick=false){
+      if(!window.showDirectoryPicker) return null;
+
       if(!forcePick){
         let handle = null;
         try{ handle = await idbGet(FS_KEY_ROOT); }catch(e){}
@@ -698,7 +711,7 @@
           return handle;
         }
       }
-      if(!window.showDirectoryPicker) return null;
+
       try{
         const picked = await window.showDirectoryPicker({ mode:"readwrite" });
         const ok = await ensurePermission(picked);
@@ -718,25 +731,16 @@
     function updateSaveTargetInfo(){
       const today = isoDate(new Date());
       const target = luxTargetForToday();
-      const lastDay = localStorage.getItem(LUX_LAST_DAY_KEY) || "";
       const lastTarget = localStorage.getItem(LUX_LAST_TARGET_KEY) || "";
-
-      // Info pre usera: kam ukladáme + auto prepínanie dňa
       if(lastTarget && lastTarget.endsWith(today)){
         saveTargetInfo.textContent = `Ukladám do: ${lastTarget}`;
       }else{
-        // aj keď ešte nič neukladal dnes, ukážeme "dnešný cieľ"
         saveTargetInfo.textContent = `Ukladám do: ${target}`;
-      }
-
-      // jemná poznámka keď sa zmenil deň (napr. po polnoci)
-      if(lastDay && lastDay !== today){
-        // len info (bez alertu – nech neruší)
-        saveTargetInfo.textContent += `\n(Dnes nový deň → nový priečinok)`;
       }
     }
 
     async function saveBlobToAutoFolder(blob, filename){
+      // ticho – ak nie je API, len sa vráti fail a spadne to do downloadu
       if(!window.showDirectoryPicker) return { ok:false, via:"no-dir-api" };
 
       const root = await getOrPickRootDir(false);
@@ -765,9 +769,11 @@
     }
 
     async function saveBlobAsFile(blob, filename){
+      // 1) pokus o auto-folder
       const auto = await saveBlobToAutoFolder(blob, filename);
       if(auto.ok) return auto;
 
+      // 2) pokus o save picker (ak existuje) – ticho, bez alertov
       try{
         if(window.showSaveFilePicker){
           const handle = await window.showSaveFilePicker({
@@ -781,6 +787,7 @@
         }
       }catch(e){}
 
+      // 3) fallback download – vždy
       try{
         downloadNow(blob, filename);
         return { ok:true, via:"download", folder:"(stiahnuté)" };
@@ -789,15 +796,16 @@
       }
     }
 
+    // Zmeniť priečinok – zobrazíme len ak to má zmysel
+    if(!window.showDirectoryPicker){
+      btnChangeFolder.style.display = "none";
+    }
     btnChangeFolder.addEventListener("click", async ()=>{
-      if(!window.showDirectoryPicker){
-        alert("Táto funkcia vyžaduje Chrome/Edge (File System Access API).");
-        return;
-      }
+      if(!window.showDirectoryPicker) return;
       const h = await getOrPickRootDir(true);
       if(h){
-        // refresh info
         updateSaveTargetInfo();
+        showSoftMsg("Priečinok nastavený ✓", 1200);
       }
     });
 
@@ -990,7 +998,7 @@
         posters: posters || [],
         note: note || "",
         file: file || "",
-        folder: folder || ""   // ✅ NOVÉ
+        folder: folder || ""
       };
       const log = loadLog();
       log.push(entry);
@@ -1273,10 +1281,8 @@
         lastBlob = f;
         afterPhoto.style.display = "block";
         tasksCard.style.display = "none";
-
-        // ✅ lux info: kam sa bude ukladať
         updateSaveTargetInfo();
-
+        showSoftMsg("", 1);
         return true;
       }
       return false;
@@ -1285,6 +1291,7 @@
     photoInput.addEventListener("change", () => {
       if (showSaveIfFileReturned()) return;
 
+      // tichý fallback: nič nevyhadzujeme, len krátky jemný text
       setTimeout(() => {
         if (showSaveIfFileReturned()) return;
 
@@ -1294,7 +1301,8 @@
           lastBlob = null;
           afterPhoto.style.display = "none";
           tasksCard.style.display = currentTasks ? "block" : "none";
-          alert("Foto sa nevrátilo do aplikácie. Skús to v Chrome alebo ako nainštalovanú appku.");
+          // bez strašenia – len jemný hint
+          showSoftMsg("Foto sa neuložilo. Skús ešte raz.", 1400);
         }, 500);
       }, 200);
     });
@@ -1309,32 +1317,48 @@
       }
     });
 
+    // Znova = otvorí kameru znovu (pri zachovanom kóde)
+    btnRetake.addEventListener("click", ()=>{
+      if(!manualCode.value.trim()){
+        showSoftMsg("Chýba kód.", 1200);
+        return;
+      }
+      openCamera();
+    });
+
+    // Späť = vráti na tasks (bez uloženia)
+    btnBack.addEventListener("click", ()=>{
+      lastBlob = null;
+      afterPhoto.style.display="none";
+      tasksCard.style.display = currentTasks ? "block" : "none";
+    });
+
     btnSavePhoto.addEventListener('click', async ()=>{
-      if(!lastBlob){ alert("Chýba fotografia."); return; }
+      if(!lastBlob){ showSoftMsg("Chýba fotografia.", 1200); return; }
 
       const code = cleanCodeInput(manualCode.value);
       manualCode.value = code;
-      if(!code){ alert("Chýba kód."); return; }
+      if(!code){ showSoftMsg("Chýba kód.", 1200); return; }
 
       currentPhotoCode = code;
       const filename = safeName(currentPhotoCode) + ".jpg";
 
-      // ✅ ulož do IDS Foto / dátum (alebo fallback)
       btnSavePhoto.disabled = true;
+      const oldTxt = btnSavePhoto.textContent;
       btnSavePhoto.textContent = "Ukladám…";
 
       const r = await saveBlobAsFile(lastBlob, filename);
 
       btnSavePhoto.disabled = false;
-      btnSavePhoto.textContent = "Uložiť";
+      btnSavePhoto.textContent = oldTxt;
 
       if(!r.ok){
-        alert("Nepodarilo sa uložiť súbor. Skús to v Chrome alebo vyber priečinok pri ukladaní.");
+        showSoftMsg("Nepodarilo sa uložiť. Skús znova.", 1600);
         return;
       }
 
-      // aktualizuj UI s cieľom
       updateSaveTargetInfo();
+      showSoftMsg("Uložené ✓", 1100);
 
       const ap = currentTasks?.ap || normCode(apInput.value);
 
@@ -1533,7 +1557,7 @@
     function exportCsv(){
       const day = repDate.value || isoDate(new Date());
       const log = loadLog().filter(x => x.day === day).sort((a,b)=> (a.ts||"").localeCompare(b.ts||""));
-      if(log.length === 0){ alert("—"); return; }
+      if(log.length === 0) return;
       const header = ["day","time","who","ap","photoCode","posters","note","file","folder"];
       const lines = [header.join(";")];
       for(const r of log){
@@ -1587,16 +1611,14 @@
       if(reportWrap.style.display === "block") renderReport();
     });
 
-    /* ===== SCAN ===== */
+    /* ===== SCAN (ticho) ===== */
     let stream=null, scanning=false;
     function stopStream(){ if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } }
     function stopScan(){ scanning=false; stopStream(); }
 
     async function startScan(){
-      if(!('BarcodeDetector' in window)) {
-        alert("Skenovanie nie je podporované v tomto prehliadači.");
-        return;
-      }
+      // ticho – ak nie je podporované, nič nevyskakuje
+      if(!('BarcodeDetector' in window)) return;
       if(scanning) return;
 
       scanning=true;
@@ -1662,9 +1684,7 @@
 
     document.getElementById("appVersion").textContent = APP_VERSION;
 
-    // lux info (pre istotu hneď)
     updateSaveTargetInfo();
-
     loadDbXlsx();
     apInput.focus();
   </script>
