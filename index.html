@@ -304,7 +304,7 @@
     <div id="tasksCard" class="card" style="display:none">
       <div id="taskList" style="display:flex;flex-direction:column;gap:10px"></div>
 
-      <!-- Express area (opens after clicking Express task) -->
+      <!-- Express area -->
       <div id="expressAreaWrap" class="subcard" style="margin-top:12px">
         <div class="muted" id="expressHint" style="margin-bottom:8px"></div>
 
@@ -358,11 +358,22 @@
         <input id="repName" placeholder="Kto" />
         <input id="repDate" type="date" />
       </div>
+
       <div class="sp"></div>
+
       <div class="row">
         <button id="btnToggleReport" class="btn gray" style="flex:1">Zobraziť</button>
         <button id="btnExportCsv" class="btn gray" style="flex:1">CSV</button>
       </div>
+
+      <div class="sp"></div>
+
+      <!-- NEW: delete buttons -->
+      <div class="row">
+        <button id="btnDeleteDay" class="btn gray" style="flex:1">Vymazať deň</button>
+        <button id="btnDeleteAll" class="btn red" style="flex:1">Vymazať všetko</button>
+      </div>
+
       <div id="reportWrap" style="display:none"></div>
     </div>
 
@@ -404,7 +415,7 @@
 
 <script>
   // ===== Version =====
-  const APP_VERSION = "V19";
+  const APP_VERSION = "V20";
 
   // ===== DB config =====
   const COL_MAIN_AP = "AP";
@@ -463,6 +474,10 @@
   const btnToggleReport = document.getElementById('btnToggleReport');
   const btnExportCsv = document.getElementById('btnExportCsv');
   const reportWrap = document.getElementById('reportWrap');
+
+  // NEW delete buttons
+  const btnDeleteDay = document.getElementById('btnDeleteDay');
+  const btnDeleteAll = document.getElementById('btnDeleteAll');
 
   const noteCard = document.getElementById('noteCard');
   const noteText = document.getElementById('noteText');
@@ -645,8 +660,8 @@
   let expressPicked=[];
 
   // ===== Report/log =====
-  const LOG_KEY="ids_foto_log_v19";
-  const REP_KEY="ids_rep_name_v19";
+  const LOG_KEY="ids_foto_log_v20";
+  const REP_KEY="ids_rep_name_v20";
 
   function loadLog(){
     try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); }
@@ -727,6 +742,30 @@
     downloadNow(blob, filename);
   }
 
+  // ===== NEW: delete functions =====
+  function deleteLogsForDay(day){
+    const all = loadLog();
+    const keep = all.filter(x => x.day !== day);
+    saveLog(keep);
+  }
+  function deleteLogsAll(){
+    saveLog([]);
+  }
+
+  btnDeleteDay.addEventListener("click", ()=>{
+    const day = repDate.value || isoDate(new Date());
+    if(!confirm(`Vymazať report len pre deň ${day}?`)) return;
+    deleteLogsForDay(day);
+    if(reportWrap.style.display === "block") renderReport();
+  });
+
+  btnDeleteAll.addEventListener("click", ()=>{
+    if(!confirm("Vymazať CELÝ report (všetky dni)?")) return;
+    if(!confirm("Naozaj? Toto sa nedá vrátiť späť.")) return;
+    deleteLogsAll();
+    if(reportWrap.style.display === "block") renderReport();
+  });
+
   // ===== UI: banners =====
   function showBanner(title, sub, showExpressBtn){
     okTitle.textContent = title;
@@ -752,7 +791,6 @@
       btnShowDetails.textContent="Skryť podrobnosti";
       window.scrollTo({ top:0, behavior:"smooth" });
     }else{
-      // re-evaluate which banner to show
       updateDoneBanners();
     }
   });
@@ -773,16 +811,16 @@
     const row = idx.byAP.get(apN);
     if(!row) return null;
 
-    const needStand = rowHasAnyText(row, IDX_STAND_FROM, IDX_STAND_TO);
-    const needB1 = norm(row[IDX_B1]) !== "";
-    const needStatic = norm(row[IDX_STATIC]) !== "";
+    const needStand = rowHasAnyText(row, colToIndex("AG"), colToIndex("AJ"));
+    const needB1 = norm(row[colToIndex("AK")]) !== "";
+    const needStatic = norm(row[colToIndex("AM")]) !== "";
 
     const standCode = norm(row[colToIndex("B")]);
     const b1Code = norm(row[colToIndex("C")]);
     const staticBase = norm(row[colToIndex("AO")]);
 
-    const needExpress = norm(row[IDX_EXPRESS]) !== "";
-    const suggestedExpress = parseEXTokens(row[IDX_EXPRESS]);
+    const needExpress = norm(row[colToIndex("AL")]) !== "";
+    const suggestedExpress = parseEXTokens(row[colToIndex("AL")]);
 
     const standHint = joinCells(row, "AG", "AJ");
     const b1Hint = norm(row[colToIndex("AK")]);
@@ -886,8 +924,8 @@
     const suggested = (t.suggestedExpress||[]);
     const codeText = suggested.length ? suggested.join(" ") : "—";
     const done = (expressStatus !== "NA");
-
     const hint = "Klikni pre potvrdenie (voliteľné)";
+
     return makeTaskRow({
       label: "Express",
       code: codeText,
@@ -962,14 +1000,9 @@
 
     const photosDone = doneStand && doneB1 && doneStat;
 
-    if(!photosDone){
-      // no banner
-      return;
-    }
+    if(!photosDone) return;
 
-    // If photos done:
     if(t.needExpress && expressStatus === "NA"){
-      // show "all except express"
       if(!detailsVisible){
         showBanner(
           "Všetko okrem expressov hotové",
@@ -978,7 +1011,6 @@
         );
       }
     } else {
-      // express either not needed OR confirmed
       if(!detailsVisible){
         showBanner(
           "Všetko hotové",
@@ -994,7 +1026,6 @@
     const t = currentTasks;
     taskList.innerHTML = "";
 
-    // close express area when re-rendering tasks if not needed
     if(!t.needExpress){
       expressAreaWrap.style.display="none";
     }
@@ -1040,7 +1071,6 @@
       taskList.appendChild(makeExpressTask(t));
     }
 
-    // After rendering tasks, update banners
     updateDoneBanners();
   }
 
@@ -1101,7 +1131,7 @@
     const n = norm(noteText.value);
     if(n) noteParts.push(n);
 
-    // express info is OPTIONAL: only if user confirmed DELIVERED/NOT
+    // express optional note only if confirmed
     if(currentTasks.needExpress){
       if(expressStatus === "DELIVERED"){
         const pickedNow = readExpressPicked();
@@ -1134,7 +1164,6 @@
     expressPicked = pickedNow;
     expressStatus = "DELIVERED";
 
-    // log express also without photos (optional action)
     if(currentTasks){
       const ap = currentTasks.ap;
       const posters = currentTasks.row ? getPostersFromRow(currentTasks.row) : [];
