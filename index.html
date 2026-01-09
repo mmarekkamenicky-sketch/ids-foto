@@ -546,6 +546,7 @@
       const ok = manualCode.value.trim().length > 0;
       btnCamera.className = ok ? "btn red" : "btn gray";
     }
+
     function downloadNow(blob, filename){
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -556,6 +557,50 @@
       a.remove();
       setTimeout(()=>URL.revokeObjectURL(url), 4000);
     }
+
+    // ✅ NOVÉ: spoľahlivé uloženie v Chrome (Save As...) + fallback
+    async function saveBlobAsFile(blob, filename){
+      // 1) File System Access API (Chrome/Edge)
+      try{
+        if(window.showSaveFilePicker){
+          const handle = await window.showSaveFilePicker({
+            suggestedName: filename,
+            types: [{
+              description: "JPEG obrázok",
+              accept: { "image/jpeg": [".jpg", ".jpeg"] }
+            }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          return { ok:true, via:"picker" };
+        }
+      }catch(e){
+        // zrušené / nepodporované -> fallback
+      }
+
+      // 2) Share sheet (Android/iOS) – ako poistka
+      try{
+        if(navigator.canShare){
+          const file = new File([blob], filename, { type: blob.type || "image/jpeg" });
+          if(navigator.canShare({ files:[file] }) && navigator.share){
+            await navigator.share({ files:[file], title: filename });
+            return { ok:true, via:"share" };
+          }
+        }
+      }catch(e){
+        // zrušené -> fallback
+      }
+
+      // 3) Klasický download
+      try{
+        downloadNow(blob, filename);
+        return { ok:true, via:"download" };
+      }catch(e){
+        return { ok:false, via:"none" };
+      }
+    }
+
     function rowHasAnyText(row, fromIdx, toIdx){
       for(let i=fromIdx;i<=toIdx;i++){
         if(norm(row[i]) !== "") return true;
@@ -1089,50 +1134,45 @@
     }
 
     function showSaveIfFileReturned(){
-  const f = photoInput.files && photoInput.files[0];
-  if(f){
-    lastBlob = f;
-    afterPhoto.style.display = "block";
-    tasksCard.style.display = "none";
-    return true;
-  }
-  return false;
-}
+      const f = photoInput.files && photoInput.files[0];
+      if(f){
+        lastBlob = f;
+        afterPhoto.style.display = "block";
+        tasksCard.style.display = "none";
+        return true;
+      }
+      return false;
+    }
 
-photoInput.addEventListener("change", () => {
-  // normálna cesta: change event vráti file
-  if (showSaveIfFileReturned()) return;
-
-  // fallback: niektoré telefóny síce odfotia, ale change príde "naprázdno"
-  setTimeout(() => {
-    if (showSaveIfFileReturned()) return;
-
-    // posledný pokus po ďalšej chvíli
-    setTimeout(() => {
+    photoInput.addEventListener("change", () => {
       if (showSaveIfFileReturned()) return;
 
-      // stále nič – tak je to prípad, keď kamera nič nevrátila
-      lastBlob = null;
-      afterPhoto.style.display = "none";
-      tasksCard.style.display = currentTasks ? "block" : "none";
-      alert("Foto sa nevrátilo do aplikácie. Skús to v Chrome alebo ako nainštalovanú appku.");
-    }, 500);
-  }, 200);
-});
+      setTimeout(() => {
+        if (showSaveIfFileReturned()) return;
 
-// Extra poistka: keď sa používateľ vráti späť do appky z fotoaparátu
-window.addEventListener("focus", () => {
-  // ak sme čakali na fotku, niekedy sa objaví až po návrate do focusu
-  if(!lastBlob) showSaveIfFileReturned();
-});
+        setTimeout(() => {
+          if (showSaveIfFileReturned()) return;
 
-document.addEventListener("visibilitychange", () => {
-  if(document.visibilityState === "visible"){
-    if(!lastBlob) showSaveIfFileReturned();
-  }
-});
+          lastBlob = null;
+          afterPhoto.style.display = "none";
+          tasksCard.style.display = currentTasks ? "block" : "none";
+          alert("Foto sa nevrátilo do aplikácie. Skús to v Chrome alebo ako nainštalovanú appku.");
+        }, 500);
+      }, 200);
+    });
 
-    btnSavePhoto.addEventListener('click', ()=>{
+    window.addEventListener("focus", () => {
+      if(!lastBlob) showSaveIfFileReturned();
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if(document.visibilityState === "visible"){
+        if(!lastBlob) showSaveIfFileReturned();
+      }
+    });
+
+    // ✅ UPRAVENÉ: async + saveBlobAsFile
+    btnSavePhoto.addEventListener('click', async ()=>{
       if(!lastBlob){ alert("Chýba fotografia."); return; }
 
       const code = cleanCodeInput(manualCode.value);
@@ -1142,7 +1182,12 @@ document.addEventListener("visibilitychange", () => {
 
       currentPhotoCode = code;
       const filename = safeName(currentPhotoCode) + ".jpg";
-      downloadNow(lastBlob, filename);
+
+      const r = await saveBlobAsFile(lastBlob, filename);
+      if(!r.ok){
+        alert("Nepodarilo sa uložiť súbor. Skús to v Chrome (nie v okne v aplikácii) alebo cez Zdieľať.");
+        return;
+      }
 
       const ap = currentTasks?.ap || normCode(apInput.value);
 
@@ -1187,7 +1232,7 @@ document.addEventListener("visibilitychange", () => {
 
     btnExpressDelivered.addEventListener("click", ()=>{
       expressStatus = "DELIVERED";
-      const pickedNow = readExpressPicked(); // vždy aktuálne!
+      const pickedNow = readExpressPicked();
       const s = "EXPRESS: " + (pickedNow.join(" ") || "ODOVZDANÝ");
       logExpress(s);
       expressAreaWrap.style.display="none";
@@ -1255,7 +1300,6 @@ document.addEventListener("visibilitychange", () => {
       apInput.value = ap;
 
       if(!ap || !idx) {
-        // ak DB ešte nie je načítaná, aspoň nech UI nespadne
         return;
       }
 
@@ -1477,4 +1521,3 @@ document.addEventListener("visibilitychange", () => {
   </script>
 </body>
 </html>
-
