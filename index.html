@@ -6,37 +6,60 @@
   <title>IDS Foto</title>
   <link rel="manifest" href="manifest.json">
 
+  <!-- Montserrat (IDS vibe) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 
   <style>
     :root{
-      --bg:#fff;
-      --text:#111;
-      --muted:#777;
+      /* IDS palette (doladíš HEXy keď chceš) */
+      --ids-yellow:#ffd400;
+      --ids-cycla:#e6007e;
+      --ids-navy:#0b2a5b;
 
-      --yellow:#ffd400;
-      --yellow2:#fff1a8;
+      --ids-soft:#f4f6fb;
+      --ids-soft2:#fff4bf;
 
-      --green:#0a7a2f;
-      --greenBg:#eefaf2;
+      --ids-green:#118a3c;
+      --ids-greenBg:#ecf8f0;
 
-      --red:#b00020;
-      --soft:#f3f3f3;
+      --ids-red:#b00020;
+
+      --bg:#ffffff;
+      --text:var(--ids-navy);
+      --muted:rgba(11,42,91,.65);
+
+      --soft:var(--ids-soft);
+      --yellow:var(--ids-yellow);
+      --yellow2:var(--ids-soft2);
+      --green:var(--ids-green);
+      --greenBg:var(--ids-greenBg);
+      --red:var(--ids-red);
+
+      --r:14px;          /* IDS rounded */
+      --r2:12px;
+      --pad:14px;
+      --shadow: 0 10px 30px rgba(11,42,91,.08);
     }
 
+    *{ box-sizing:border-box; border-radius:var(--r2); }
+
     body{
-      font-family: Onest, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      font-family: Montserrat, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       background:var(--bg);
       color:var(--text);
       margin:14px;
       max-width:720px;
     }
 
-    *{ border-radius:8px; }
+    .card{
+      border:none;
+      padding:var(--pad);
+      background:#fff;
+      box-shadow: var(--shadow);
+    }
 
-    .card{ border:none; padding:12px; background:#fff; }
     .row{ display:flex; gap:10px; align-items:center; }
 
     input, textarea{
@@ -45,10 +68,17 @@
       border:none;
       font-size:16px;
       background:var(--soft);
+      color:var(--ids-navy);
       font-family: inherit;
       outline:none;
+      font-weight:800;
+      border-radius:var(--r);
     }
-    textarea{ min-height:64px; resize:vertical; }
+    textarea{
+      min-height:72px;
+      resize:vertical;
+      font-weight:700;
+    }
 
     .btn{
       border:0;
@@ -56,67 +86,69 @@
       font-weight:900;
       font-size:16px;
       cursor:pointer;
-      background:#111;
+      background:var(--ids-navy);
       color:#fff;
+      border-radius:var(--r);
     }
     .btn.yellow{
-      background:var(--yellow);
-      color:#111;
-      font-size:20px;
-      padding:18px 16px;
+      background:var(--ids-yellow);
+      color:var(--ids-navy);
+      font-size:18px;
+      padding:16px 16px;
     }
-    .btn.gray{ background:#e9e9e9; color:#111; font-weight:900; }
-    .btn.green{ background:var(--green); color:#fff; font-size:18px; padding:18px 16px; }
-    .btn.red{ background:var(--red); color:#fff; font-size:18px; padding:18px 16px; }
+    .btn.gray{
+      background:#e9eef7;
+      color:var(--ids-navy);
+      font-weight:900;
+    }
+    .btn.green{
+      background:var(--ids-green);
+      color:#fff;
+      font-size:18px;
+      padding:16px 16px;
+    }
+    .btn.red{
+      background:var(--ids-cycla); /* cyklamen */
+      color:#fff;
+      font-size:18px;
+      padding:16px 16px;
+    }
 
     .linkBtn{
       border:0;
       background:transparent;
-      color:#333;
+      color:rgba(11,42,91,.75);
       font-weight:900;
       font-size:13px;
       padding:8px 10px;
       cursor:pointer;
       text-decoration:underline;
+      border-radius:12px;
     }
 
     .sp{height:10px}
     .sp2{height:14px}
 
-    /* HERO AP – väčšie + tlačidlo pod tým */
-    .hero{ padding:14px; background:#fff; }
-    .heroRow{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      align-items:stretch;
+    /* AP: menšie – hore pole, pod ním Načítať */
+    .apCard{
+      padding:14px;
+      background:#fff;
+      border-radius:var(--r);
     }
-    .heroInput{
-      font-size:28px !important;
-      padding:22px 18px !important;
-      font-weight:900;
+    .apStack{ display:flex; flex-direction:column; gap:10px; }
+    .apInput{
+      font-size:20px !important;
+      padding:16px 16px !important;
+      font-weight:900 !important;
       letter-spacing:.01em;
     }
-    .heroBtn{
-      width:100%;
-      font-size:20px !important;
-      padding:18px 16px !important;
-    }
+    .apBtn{ width:100%; }
 
-    .subtleCard{ background:#fff; padding:12px; margin-top:10px; }
-
-    .pulse{ animation: pulse 0.75s ease-in-out 2; }
-    @keyframes pulse{
-      0%{ transform:scale(1); filter:brightness(1); }
-      50%{ transform:scale(1.03); filter:brightness(1.05); }
-      100%{ transform:scale(1); filter:brightness(1); }
-    }
-
-    /* TOP BANNER */
+    /* Top OK overlay */
     #topOkBanner{ display:none; }
     .okFull{
-      background:var(--greenBg);
-      color:var(--green);
+      background:linear-gradient(0deg, rgba(255,212,0,.16), rgba(255,212,0,.16)), #fff;
+      color:var(--ids-navy);
       padding:18px;
       display:flex;
       flex-direction:column;
@@ -124,24 +156,27 @@
       align-items:center;
       justify-content:center;
       text-align:center;
-      min-height:55vh;
+      min-height:58vh;
+      border-radius:var(--r);
+      box-shadow: var(--shadow);
     }
     .okIcon{
-      width:64px;height:64px;
+      width:68px;height:68px;
       display:flex;align-items:center;justify-content:center;
-      background:rgba(10,122,47,.12);
-      color:var(--green);
+      background:rgba(230,0,126,.10);
+      color:var(--ids-cycla);
       border-radius:999px;
-      font-size:34px;
+      font-size:36px;
       font-weight:900;
     }
-    .okTitle{ font-weight:900; font-size:24px; line-height:1.1; }
-    .okSub{ color:#2f7a4a; font-weight:800; opacity:.9; font-size:14px; }
+    .okTitle{ font-weight:900; font-size:24px; line-height:1.15; }
+    .okSub{ color:rgba(11,42,91,.75); font-weight:800; font-size:13px; }
 
-    /* tasks */
+    /* Tasks */
+    #tasksCard{ display:none; }
     .task{
       border:none;
-      padding:14px 14px;
+      padding:16px;
       display:flex;
       align-items:stretch;
       justify-content:space-between;
@@ -149,35 +184,42 @@
       user-select:none;
       cursor:pointer;
       background:var(--yellow2);
+      border-radius:var(--r);
     }
-    .task.done{ background:var(--greenBg); color:var(--green); }
-    .task .left{ display:flex; flex-direction:column; gap:8px; min-width:0; flex:1 1 auto; }
-    .task .title{ font-weight:900; font-size:16px; line-height:1.1; }
+    .task.done{ background:var(--greenBg); color:var(--ids-green); }
+    .task .left{ display:flex; flex-direction:column; gap:10px; min-width:0; flex:1 1 auto; }
+    .task .title{ font-weight:900; font-size:16px; line-height:1.1; color:var(--ids-navy); }
+    .task.done .title{ color:var(--ids-green); }
+
     .task .code{
       font-weight:900;
-      color:#111;
+      color:var(--ids-navy);
       background:#fff;
       border:none;
-      padding:10px 12px;
+      padding:12px 14px;
       display:inline-block;
       width:max-content;
       max-width:100%;
       overflow:hidden;
       text-overflow:ellipsis;
       white-space:nowrap;
+      border-radius:var(--r);
     }
+    .task.done .code{ color:var(--ids-green); }
+
     .task .hint{
       font-size:12.5px;
-      font-weight:900;
+      font-weight:800;
       line-height:1.25;
-      color:#111;
-      background:rgba(255,255,255,.65);
-      padding:10px 12px;
+      color:var(--ids-navy);
+      background:rgba(255,255,255,.70);
+      padding:12px 14px;
       border:none;
       white-space:pre-wrap;
       word-break:break-word;
+      border-radius:var(--r);
     }
-    .task.done .hint{ background:rgba(255,255,255,.55); color:#0a7a2f; }
+    .task.done .hint{ background:rgba(255,255,255,.55); color:var(--ids-green); }
 
     .suffixWrap{
       display:flex;
@@ -196,17 +238,26 @@
       text-align:center;
       cursor:pointer;
       user-select:none;
+      border-radius:var(--r);
+      color:var(--ids-navy);
     }
-    .suffixBtn.active{ box-shadow:0 0 0 2px rgba(0,0,0,.12) inset; }
+    .suffixBtn.active{
+      box-shadow: 0 0 0 2px rgba(11,42,91,.10) inset;
+      background:rgba(255,255,255,.92);
+    }
 
     /* After photo */
     #afterPhoto{ display:none; }
-    .bigSave{ width:100%; }
+    .bigSave{ width:100%; font-size:20px; padding:18px 16px; }
 
     /* Express area */
     #expressAreaWrap{ display:none; }
-    .subcard{ border:none; padding:12px; background:var(--soft); }
-
+    .subcard{
+      border:none;
+      padding:12px;
+      background:var(--soft);
+      border-radius:var(--r);
+    }
     .exGrid{
       display:grid;
       grid-template-columns: repeat(3, 1fr);
@@ -220,11 +271,12 @@
       background:#fff;
       padding:12px 12px;
       user-select:none;
+      border-radius:var(--r);
     }
     .exItem input{ width:auto; margin:0; padding:0; }
-    .exItem label{ font-weight:900; cursor:pointer; }
+    .exItem label{ font-weight:900; cursor:pointer; color:var(--ids-navy); }
 
-    /* bottom icons */
+    /* Bottom bar */
     .bottomBar{
       margin-top:12px;
       display:flex;
@@ -235,8 +287,8 @@
     .miniIcon{
       flex:1;
       border:none;
-      background:var(--soft);
-      padding:10px 10px;
+      background:#eef2fb;
+      padding:12px 10px;
       font-weight:900;
       display:flex;
       gap:10px;
@@ -244,48 +296,66 @@
       justify-content:center;
       cursor:pointer;
       user-select:none;
-      color:#111;
+      color:var(--ids-navy);
+      border-radius:var(--r);
+      box-shadow: 0 8px 22px rgba(11,42,91,.06);
     }
     .miniIcon span{ font-size:18px; }
 
     #panelScan, #panelReport { display:none; margin-top:12px; }
-    video{width:100%; background:#000; border:none; }
+    video{width:100%; background:#000; border:none; border-radius:var(--r); }
 
-    .muted{ color:var(--muted); font-size:12px; }
+    .muted{ color:var(--muted); font-size:12px; font-weight:800; }
     table{width:100%;border-collapse:collapse;margin-top:10px}
     th,td{border-bottom:1px solid #eee;padding:8px 6px;font-size:12.5px;vertical-align:top}
-    th{text-align:left;font-size:11px;color:#666}
+    th{text-align:left;font-size:11px;color:#667}
 
-    /* mini info */
+    /* Mini info */
     #miniInfoWrap{ display:none; }
-    .miniInfo{ background:#f6f6f6; padding:10px; }
+    .miniInfo{ background:#f6f7fb; padding:12px; border-radius:var(--r); }
     .miniTitle{
       font-size:11px;
       font-weight:900;
-      color:#666;
+      color:rgba(11,42,91,.55);
       margin-bottom:6px;
       text-transform:uppercase;
       letter-spacing:.02em;
     }
-    .miniLine{ font-size:12.5px; color:#111; line-height:1.35; margin:2px 0; word-break:break-word; }
+    .miniLine{ font-size:12.5px; color:var(--ids-navy); line-height:1.35; margin:2px 0; word-break:break-word; font-weight:700; }
     .miniPills{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
-    .miniPill{ font-size:12px; font-weight:900; background:#eaeaea; padding:6px 8px; }
+    .miniPill{ font-size:12px; font-weight:900; background:#eaeef7; padding:6px 8px; border-radius:999px; }
 
     #noteCard{ display:none; margin-top:12px; }
 
     #appVersion{
       margin-top:12px;
       text-align:center;
-      color:#999;
+      color:rgba(11,42,91,.35);
       font-weight:900;
       font-size:12px;
+      letter-spacing:.05em;
+    }
+
+    dialog{
+      border:none;
+      padding:16px;
+      border-radius:var(--r);
+      box-shadow: var(--shadow);
+    }
+
+    /* small pulse when scanned */
+    .pulse{ animation: pulse 0.75s ease-in-out 2; }
+    @keyframes pulse{
+      0%{ transform:scale(1); filter:brightness(1); }
+      50%{ transform:scale(1.03); filter:brightness(1.05); }
+      100%{ transform:scale(1); filter:brightness(1); }
     }
   </style>
 </head>
 <body>
 
-  <!-- TOP BANNER -->
-  <div id="topOkBanner" class="card">
+  <!-- TOP OK OVERLAY -->
+  <div id="topOkBanner" class="card" style="padding:0;background:transparent;box-shadow:none">
     <div class="okFull">
       <div class="okIcon">✓</div>
       <div id="okTitle" class="okTitle">Všetko hotové</div>
@@ -298,16 +368,19 @@
   </div>
 
   <div id="mainUi">
-    <!-- HERO AP -->
-    <div class="card hero">
-      <div class="heroRow">
-        <input id="apInput" class="heroInput" placeholder="Kód plochy" />
-        <button id="btnLoad" class="btn yellow heroBtn">Načítať</button>
+
+    <!-- AP -->
+    <div class="card apCard">
+      <div class="apStack">
+        <input id="apInput" class="apInput" placeholder="Kód plochy" inputmode="numeric" />
+        <button id="btnLoad" class="btn yellow apBtn">Načítať</button>
       </div>
     </div>
 
-    <!-- Secondary -->
-    <div class="card subtleCard">
+    <div class="sp2"></div>
+
+    <!-- Manual / scan result + camera -->
+    <div class="card">
       <div class="row">
         <input id="manualCode" placeholder="Kód (sken / ručne)" />
         <button id="btnCamera" class="btn gray" style="min-width:110px">Foto</button>
@@ -319,8 +392,8 @@
     <div class="sp2"></div>
 
     <!-- TASKS -->
-    <div id="tasksCard" class="card" style="display:none">
-      <div id="taskList" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div id="tasksCard" class="card">
+      <div id="taskList" style="display:flex;flex-direction:column;gap:12px"></div>
 
       <div id="expressAreaWrap" class="subcard" style="margin-top:12px">
         <div class="muted" id="expressHint" style="margin-bottom:8px"></div>
@@ -337,7 +410,6 @@
       </div>
 
       <div class="sp2"></div>
-
       <button id="btnFinish" class="btn red" style="width:100%">Ukončiť</button>
     </div>
 
@@ -353,11 +425,13 @@
 
     <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none" />
 
+    <!-- Bottom -->
     <div class="bottomBar">
       <div id="btnMiniScan" class="miniIcon"><span>▣</span><div>Sken</div></div>
       <div id="btnMiniReport" class="miniIcon"><span>≡</span><div>Report</div></div>
     </div>
 
+    <!-- Scan panel -->
     <div id="panelScan" class="card">
       <video id="video" playsinline></video>
       <canvas id="canvas" style="display:none"></canvas>
@@ -365,6 +439,7 @@
       <button id="btnStopScan" class="btn gray" style="width:100%">Stop</button>
     </div>
 
+    <!-- Report -->
     <div id="panelReport" class="card">
       <div class="row">
         <input id="repName" placeholder="Kto" />
@@ -383,12 +458,14 @@
       <div id="reportWrap" style="display:none"></div>
     </div>
 
+    <!-- Note -->
     <div id="noteCard" class="card">
       <div class="subcard">
         <textarea id="noteText" placeholder="Poznámka"></textarea>
       </div>
     </div>
 
+    <!-- Mini info -->
     <div id="miniInfoWrap" class="card">
       <div class="miniInfo">
         <div class="miniTitle">Plocha</div>
@@ -405,8 +482,9 @@
     <div id="appVersion"></div>
   </div>
 
+  <!-- Finish dialog -->
   <dialog id="dlgFinish">
-    <div style="font-weight:900;font-size:18px">Ukončiť?</div>
+    <div style="font-weight:900;font-size:18px;color:var(--ids-navy)">Ukončiť?</div>
     <div id="finishText" class="muted" style="margin-top:10px"></div>
     <div class="sp2"></div>
     <div class="row">
@@ -418,7 +496,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <script>
-  const APP_VERSION = "V25";
+  const APP_VERSION = "V26";
 
   // columns
   const COL_MAIN_AP = "AP";
@@ -427,7 +505,7 @@
   const COL_STATIC="AM";
   const COL_EXPRESS="AL";
 
-  // codes for labels
+  // codes
   const COL_STAND_CODE="B";
   const COL_B1_CODE="C";
   const COL_STATIC_CODE="AO";
@@ -455,7 +533,7 @@
   }
   function refreshCameraButton(){
     const ok = manualCode.value.trim().length > 0;
-    btnCamera.className = ok ? "btn red" : "btn gray";
+    btnCamera.className = ok ? "btn red" : "btn gray"; // red = cyklamen
   }
   function downloadNow(blob, filename){
     const url = URL.createObjectURL(blob);
@@ -706,8 +784,8 @@
   }
 
   // ===== LOG
-  const LOG_KEY="ids_foto_log_v25";
-  const REP_KEY="ids_rep_name_v25";
+  const LOG_KEY="ids_foto_log_v26";
+  const REP_KEY="ids_rep_name_v26";
 
   function loadLog(){ try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); } catch { return []; } }
   function saveLog(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)); }
@@ -745,7 +823,6 @@
 
   // ===== OK banner logic
   function showOkBanner(mode){
-    // mode: "ALL" | "PHOTOS_ONLY"
     if(!currentTasks) return;
 
     const needExpress = !!currentTasks.needExpress;
@@ -785,10 +862,8 @@
 
   function checkAutoOk(){
     if(!currentTasks) return;
-
     if(!photosDone()) return;
 
-    // fotky hotové
     if(currentTasks.needExpress && expressStatus === "NA"){
       showOkBanner("PHOTOS_ONLY");
     }else{
@@ -981,7 +1056,6 @@
       }));
     }
 
-    // po prerenderovaní skús, či už nie sme hotoví
     checkAutoOk();
   }
 
@@ -1030,24 +1104,16 @@
     tasksCard.style.display = currentTasks ? "block" : "none";
   });
 
-  // Uložiť foto aj bez načítanej plochy
   btnSavePhoto.addEventListener('click', ()=>{
-    if(!lastBlob){
-      alert("Chýba fotografia.");
-      return;
-    }
+    if(!lastBlob){ alert("Chýba fotografia."); return; }
 
     const code = manualCode.value.trim();
-    if(!code){
-      alert("Chýba kód.");
-      return;
-    }
+    if(!code){ alert("Chýba kód."); return; }
 
     currentPhotoCode = code;
     const filename = safeName(currentPhotoCode) + ".jpg";
     downloadNow(lastBlob, filename);
 
-    // AP prefer: currentTasks.ap; else apInput
     const ap = currentTasks?.ap || normCode(apInput.value);
 
     let posters = [];
@@ -1068,14 +1134,12 @@
     tasksCard.style.display = currentTasks ? "block" : "none";
 
     if(currentTasks){
-      renderTasks(); // v renderTasks je checkAutoOk()
+      renderTasks();
     }
   });
 
   // ===== EXPRESS BUTTONS
-  btnExpressClose.addEventListener("click", ()=>{
-    expressAreaWrap.style.display="none";
-  });
+  btnExpressClose.addEventListener("click", ()=> expressAreaWrap.style.display="none");
 
   function logExpress(statusText){
     if(!currentTasks) return;
@@ -1096,17 +1160,15 @@
     const pickedNow = readExpressPicked();
     const s = "EXPRESS: " + (pickedNow.join(" ") || "ODOVZDANÝ");
     logExpress(s);
-
     expressAreaWrap.style.display="none";
-    renderTasks(); // môže spustiť ALL ok
+    renderTasks();
   });
 
   btnExpressNot.addEventListener("click", ()=>{
     expressStatus = "NOT";
     logExpress("EXPRESS: NEODOVZDANÝ");
-
     expressAreaWrap.style.display="none";
-    renderTasks(); // môže spustiť ALL ok (lebo express status už nie je NA)
+    renderTasks();
   });
 
   // ===== Finish (manual)
@@ -1114,11 +1176,7 @@
     if(!currentTasks) return;
     const miss = missingListForPhotosOnly();
     if(miss.length===0){
-      // ak fotky hotové a express ešte NA, ukáž banner „okrem expressov“
-      if(currentTasks.needExpress && expressStatus==="NA"){
-        showOkBanner("PHOTOS_ONLY");
-        return;
-      }
+      if(currentTasks.needExpress && expressStatus==="NA"){ showOkBanner("PHOTOS_ONLY"); return; }
       showOkBanner("ALL");
       return;
     }
