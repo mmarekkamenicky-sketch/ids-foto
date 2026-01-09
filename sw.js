@@ -1,37 +1,54 @@
-const CACHE = "ids-foto-v3"; // keď zmeníš DB, zmeň na v4, v5...
-
-const CORE = [
+/* IDS Foto – Service Worker */
+const CACHE_NAME = "ids-foto-cache-v26";
+const CORE_ASSETS = [
   "./",
   "./index.html",
   "./manifest.json",
-  "./sw.js",
-  "./db.xlsx" // DB je súčasť appky
+  "./db.xlsx",
+  "./sw.js"
 ];
 
-self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)));
-  self.skipWaiting();
+// Install: cache core
+self.addEventListener("install", (event) => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.addAll(CORE_ASSETS);
+    self.skipWaiting();
+  })());
 });
 
-self.addEventListener("activate", (e) => {
-  e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.map(k => k !== CACHE ? caches.delete(k) : null)))
-  );
-  self.clients.claim();
+// Activate: cleanup old caches
+self.addEventListener("activate", (event) => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => (k !== CACHE_NAME) ? caches.delete(k) : Promise.resolve()));
+    self.clients.claim();
+  })());
 });
 
-self.addEventListener("fetch", (e) => {
-  e.respondWith((async () => {
-    const cache = await caches.open(CACHE);
-    const cached = await cache.match(e.request);
+// Fetch: stale-while-revalidate
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  if (req.method !== "GET") return;
+
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(req);
+
+    // Start network update in background
+    const fetchPromise = fetch(req).then((res) => {
+      // Cache only successful basic responses
+      if (res && res.status === 200 && (res.type === "basic" || res.type === "cors")) {
+        cache.put(req, res.clone()).catch(()=>{});
+      }
+      return res;
+    }).catch(() => null);
+
+    // If cached exists, return it immediately, while updating in background
     if (cached) return cached;
 
-    try {
-      const fresh = await fetch(e.request);
-      cache.put(e.request, fresh.clone());
-      return fresh;
-    } catch {
-      return cache.match("./index.html");
-    }
+    // Otherwise wait for network
+    const net = await fetchPromise;
+    return net || new Response("Offline", { status: 503, statusText: "Offline" });
   })());
 });
