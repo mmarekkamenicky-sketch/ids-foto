@@ -128,7 +128,6 @@
     .sp{height:10px}
     .sp2{height:14px}
 
-    /* AP panel - menší, hore input, pod ním tlačidlo */
     .apInput{
       font-size:18px !important;
       padding:14px 14px !important;
@@ -406,6 +405,17 @@
     <!-- AFTER PHOTO -->
     <div id="afterPhoto" class="card">
       <button id="btnSavePhoto" class="btn yellow bigSave">Uložiť</button>
+
+      <div class="sp"></div>
+
+      <!-- Luxus info o ukladaní -->
+      <div class="row" style="align-items:flex-start">
+        <div id="saveTargetInfo" class="muted" style="flex:1; line-height:1.35">
+          —
+        </div>
+        <button id="btnChangeFolder" class="linkBtn" style="white-space:nowrap">Zmeniť priečinok</button>
+      </div>
+
       <div class="sp"></div>
       <div class="row">
         <button id="btnRetake" class="btn gray" style="flex:1">Znova</button>
@@ -487,16 +497,12 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <script>
-    const APP_VERSION = "V26";
+    const APP_VERSION = "V26-LUX";
 
     /* ===== Service Worker register ===== */
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", async () => {
-        try {
-          await navigator.serviceWorker.register("./sw.js");
-        } catch (e) {
-          // ticho – SW nie je kritický na beh
-        }
+        try { await navigator.serviceWorker.register("./sw.js"); } catch (e) {}
       });
     }
 
@@ -532,7 +538,6 @@
       return String(ts||"").split("T")[1]?.slice(0,8) || "";
     }
 
-    /* ===== Clean input: UPPER + no spaces ===== */
     function cleanCodeInput(v){
       let s = String(v ?? "");
       s = s.replace(/\u00A0/g, " ");
@@ -540,101 +545,6 @@
       s = s.replace(/[‐-–—]/g, "-");
       s = s.toUpperCase();
       return s;
-    }
-
-    function refreshCameraButton(){
-      const ok = manualCode.value.trim().length > 0;
-      btnCamera.className = ok ? "btn red" : "btn gray";
-    }
-
-    function downloadNow(blob, filename){
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(()=>URL.revokeObjectURL(url), 4000);
-    }
-
-    // ✅ NOVÉ: spoľahlivé uloženie v Chrome (Save As...) + fallback
-    async function saveBlobAsFile(blob, filename){
-      // 1) File System Access API (Chrome/Edge)
-      try{
-        if(window.showSaveFilePicker){
-          const handle = await window.showSaveFilePicker({
-            suggestedName: filename,
-            types: [{
-              description: "JPEG obrázok",
-              accept: { "image/jpeg": [".jpg", ".jpeg"] }
-            }]
-          });
-          const writable = await handle.createWritable();
-          await writable.write(blob);
-          await writable.close();
-          return { ok:true, via:"picker" };
-        }
-      }catch(e){
-        // zrušené / nepodporované -> fallback
-      }
-
-      // 2) Share sheet (Android/iOS) – ako poistka
-      try{
-        if(navigator.canShare){
-          const file = new File([blob], filename, { type: blob.type || "image/jpeg" });
-          if(navigator.canShare({ files:[file] }) && navigator.share){
-            await navigator.share({ files:[file], title: filename });
-            return { ok:true, via:"share" };
-          }
-        }
-      }catch(e){
-        // zrušené -> fallback
-      }
-
-      // 3) Klasický download
-      try{
-        downloadNow(blob, filename);
-        return { ok:true, via:"download" };
-      }catch(e){
-        return { ok:false, via:"none" };
-      }
-    }
-
-    function rowHasAnyText(row, fromIdx, toIdx){
-      for(let i=fromIdx;i<=toIdx;i++){
-        if(norm(row[i]) !== "") return true;
-      }
-      return false;
-    }
-    function joinCells(row, fromCol, toCol){
-      const from = colToIndex(fromCol);
-      const to = colToIndex(toCol);
-      const parts=[];
-      for(let i=from;i<=to;i++){
-        const v = norm(row[i]);
-        if(v) parts.push(v);
-      }
-      return parts.join("\n");
-    }
-    function parseEXTokens(s){
-      const t = normCode(s).replace(/[,\.;\/\\]+/g, " ");
-      const parts = t.split(/\s+/).filter(Boolean);
-      const out = [];
-      for(const p of parts){
-        const m = /^EX([1-9])$/.exec(p);
-        if(m) out.push("EX"+m[1]);
-      }
-      return Array.from(new Set(out));
-    }
-    function readExpressPicked(){
-      const picked=[];
-      for(let i=1;i<=9;i++){
-        const ex="EX"+i;
-        const cb=document.getElementById("cb_"+ex);
-        if(cb && cb.checked) picked.push(ex);
-      }
-      return picked;
     }
 
     /* ===== Elements ===== */
@@ -670,6 +580,9 @@
     const btnBack = document.getElementById('btnBack');
     const photoInput = document.getElementById('photoInput');
 
+    const saveTargetInfo = document.getElementById('saveTargetInfo');
+    const btnChangeFolder = document.getElementById('btnChangeFolder');
+
     const btnMiniScan = document.getElementById('btnMiniScan');
     const btnMiniReport = document.getElementById('btnMiniReport');
     const panelScan = document.getElementById('panelScan');
@@ -703,6 +616,190 @@
     const btnFinish = document.getElementById('btnFinish');
     const btnFinishNo = document.getElementById('btnFinishNo');
     const btnFinishYes = document.getElementById('btnFinishYes');
+
+    function refreshCameraButton(){
+      const ok = manualCode.value.trim().length > 0;
+      btnCamera.className = ok ? "btn red" : "btn gray";
+    }
+
+    /* ===== Basic download fallback ===== */
+    function downloadNow(blob, filename){
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    }
+
+    /* =========================================================
+       ✅ LUX SAVE: IDS Foto / YYYY-MM-DD (auto)
+       - root handle: IndexedDB
+       - posledný cieľ: localStorage (kvôli UI)
+    ========================================================= */
+    const FS_DB_NAME = "ids_foto_fs";
+    const FS_STORE = "kv";
+    const FS_KEY_ROOT = "rootDirHandle";
+
+    const LUX_LAST_TARGET_KEY = "ids_last_target_v26"; // "IDS Foto/2026-01-09"
+    const LUX_LAST_DAY_KEY    = "ids_last_day_v26";
+
+    function idbOpen(){
+      return new Promise((resolve, reject)=>{
+        const req = indexedDB.open(FS_DB_NAME, 1);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if(!db.objectStoreNames.contains(FS_STORE)){
+            db.createObjectStore(FS_STORE);
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+    async function idbSet(key, value){
+      const db = await idbOpen();
+      return new Promise((resolve, reject)=>{
+        const tx = db.transaction(FS_STORE, "readwrite");
+        tx.objectStore(FS_STORE).put(value, key);
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+    async function idbGet(key){
+      const db = await idbOpen();
+      return new Promise((resolve, reject)=>{
+        const tx = db.transaction(FS_STORE, "readonly");
+        const req = tx.objectStore(FS_STORE).get(key);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function ensurePermission(dirHandle){
+      if(!dirHandle) return false;
+      try{
+        const q = await dirHandle.queryPermission({ mode:"readwrite" });
+        if(q === "granted") return true;
+        const r = await dirHandle.requestPermission({ mode:"readwrite" });
+        return r === "granted";
+      }catch(e){
+        return false;
+      }
+    }
+
+    async function getOrPickRootDir(forcePick=false){
+      if(!forcePick){
+        let handle = null;
+        try{ handle = await idbGet(FS_KEY_ROOT); }catch(e){}
+        if(handle && await ensurePermission(handle)){
+          return handle;
+        }
+      }
+      if(!window.showDirectoryPicker) return null;
+      try{
+        const picked = await window.showDirectoryPicker({ mode:"readwrite" });
+        const ok = await ensurePermission(picked);
+        if(!ok) return null;
+        try{ await idbSet(FS_KEY_ROOT, picked); }catch(e){}
+        return picked;
+      }catch(e){
+        return null;
+      }
+    }
+
+    function luxTargetForToday(){
+      const day = isoDate(new Date());
+      return `IDS Foto/${day}`;
+    }
+
+    function updateSaveTargetInfo(){
+      const today = isoDate(new Date());
+      const target = luxTargetForToday();
+      const lastDay = localStorage.getItem(LUX_LAST_DAY_KEY) || "";
+      const lastTarget = localStorage.getItem(LUX_LAST_TARGET_KEY) || "";
+
+      // Info pre usera: kam ukladáme + auto prepínanie dňa
+      if(lastTarget && lastTarget.endsWith(today)){
+        saveTargetInfo.textContent = `Ukladám do: ${lastTarget}`;
+      }else{
+        // aj keď ešte nič neukladal dnes, ukážeme "dnešný cieľ"
+        saveTargetInfo.textContent = `Ukladám do: ${target}`;
+      }
+
+      // jemná poznámka keď sa zmenil deň (napr. po polnoci)
+      if(lastDay && lastDay !== today){
+        // len info (bez alertu – nech neruší)
+        saveTargetInfo.textContent += `\n(Dnes nový deň → nový priečinok)`;
+      }
+    }
+
+    async function saveBlobToAutoFolder(blob, filename){
+      if(!window.showDirectoryPicker) return { ok:false, via:"no-dir-api" };
+
+      const root = await getOrPickRootDir(false);
+      if(!root) return { ok:false, via:"no-root" };
+
+      const folderMain = "IDS Foto";
+      const folderDay = isoDate(new Date());
+
+      try{
+        const idsDir = await root.getDirectoryHandle(folderMain, { create:true });
+        const dayDir = await idsDir.getDirectoryHandle(folderDay, { create:true });
+
+        const fileHandle = await dayDir.getFileHandle(filename, { create:true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+
+        const target = `${folderMain}/${folderDay}`;
+        localStorage.setItem(LUX_LAST_TARGET_KEY, target);
+        localStorage.setItem(LUX_LAST_DAY_KEY, folderDay);
+
+        return { ok:true, via:"auto-folder", folder: target };
+      }catch(e){
+        return { ok:false, via:"auto-folder-fail" };
+      }
+    }
+
+    async function saveBlobAsFile(blob, filename){
+      const auto = await saveBlobToAutoFolder(blob, filename);
+      if(auto.ok) return auto;
+
+      try{
+        if(window.showSaveFilePicker){
+          const handle = await window.showSaveFilePicker({
+            suggestedName: filename,
+            types: [{ description: "JPEG obrázok", accept: { "image/jpeg": [".jpg", ".jpeg"] } }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          return { ok:true, via:"picker", folder:"(vybrané ručne)" };
+        }
+      }catch(e){}
+
+      try{
+        downloadNow(blob, filename);
+        return { ok:true, via:"download", folder:"(stiahnuté)" };
+      }catch(e){
+        return { ok:false, via:"none" };
+      }
+    }
+
+    btnChangeFolder.addEventListener("click", async ()=>{
+      if(!window.showDirectoryPicker){
+        alert("Táto funkcia vyžaduje Chrome/Edge (File System Access API).");
+        return;
+      }
+      const h = await getOrPickRootDir(true);
+      if(h){
+        // refresh info
+        updateSaveTargetInfo();
+      }
+    });
 
     /* ===== DB ===== */
     let dbRows=null, idx=null;
@@ -743,6 +840,43 @@
       }catch(e){
         dbRows=null; idx=null;
       }
+    }
+
+    function rowHasAnyText(row, fromIdx, toIdx){
+      for(let i=fromIdx;i<=toIdx;i++){
+        if(norm(row[i]) !== "") return true;
+      }
+      return false;
+    }
+    function joinCells(row, fromCol, toCol){
+      const from = colToIndex(fromCol);
+      const to = colToIndex(toCol);
+      const parts=[];
+      for(let i=from;i<=to;i++){
+        const v = norm(row[i]);
+        if(v) parts.push(v);
+      }
+      return parts.join("\n");
+    }
+
+    function parseEXTokens(s){
+      const t = normCode(s).replace(/[,\.;\/\\]+/g, " ");
+      const parts = t.split(/\s+/).filter(Boolean);
+      const out = [];
+      for(const p of parts){
+        const m = /^EX([1-9])$/.exec(p);
+        if(m) out.push("EX"+m[1]);
+      }
+      return Array.from(new Set(out));
+    }
+    function readExpressPicked(){
+      const picked=[];
+      for(let i=1;i<=9;i++){
+        const ex="EX"+i;
+        const cb=document.getElementById("cb_"+ex);
+        if(cb && cb.checked) picked.push(ex);
+      }
+      return picked;
     }
 
     function getPostersFromRow(row){
@@ -805,7 +939,6 @@
     let currentPhotoCode="";
     let lastBlob=null;
 
-    /* Express state */
     let expressStatus="NA";
     let expressSuggested=[];
 
@@ -846,7 +979,7 @@
     function loadLog(){ try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); } catch { return []; } }
     function saveLog(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)); }
 
-    function addLogEntry(ap, photoCode, posters, note, file){
+    function addLogEntry(ap, photoCode, posters, note, file, folder){
       const now = new Date();
       const entry = {
         ts: now.toISOString().slice(0,19),
@@ -856,7 +989,8 @@
         photoCode: photoCode || "",
         posters: posters || [],
         note: note || "",
-        file: file || ""
+        file: file || "",
+        folder: folder || ""   // ✅ NOVÉ
       };
       const log = loadLog();
       log.push(entry);
@@ -1139,6 +1273,10 @@
         lastBlob = f;
         afterPhoto.style.display = "block";
         tasksCard.style.display = "none";
+
+        // ✅ lux info: kam sa bude ukladať
+        updateSaveTargetInfo();
+
         return true;
       }
       return false;
@@ -1171,23 +1309,32 @@
       }
     });
 
-    // ✅ UPRAVENÉ: async + saveBlobAsFile
     btnSavePhoto.addEventListener('click', async ()=>{
       if(!lastBlob){ alert("Chýba fotografia."); return; }
 
       const code = cleanCodeInput(manualCode.value);
       manualCode.value = code;
-
       if(!code){ alert("Chýba kód."); return; }
 
       currentPhotoCode = code;
       const filename = safeName(currentPhotoCode) + ".jpg";
 
+      // ✅ ulož do IDS Foto / dátum (alebo fallback)
+      btnSavePhoto.disabled = true;
+      btnSavePhoto.textContent = "Ukladám…";
+
       const r = await saveBlobAsFile(lastBlob, filename);
+
+      btnSavePhoto.disabled = false;
+      btnSavePhoto.textContent = "Uložiť";
+
       if(!r.ok){
-        alert("Nepodarilo sa uložiť súbor. Skús to v Chrome (nie v okne v aplikácii) alebo cez Zdieľať.");
+        alert("Nepodarilo sa uložiť súbor. Skús to v Chrome alebo vyber priečinok pri ukladaní.");
         return;
       }
+
+      // aktualizuj UI s cieľom
+      updateSaveTargetInfo();
 
       const ap = currentTasks?.ap || normCode(apInput.value);
 
@@ -1202,7 +1349,7 @@
       }
 
       const note = norm(noteText.value);
-      addLogEntry(ap, currentPhotoCode, posters, note, filename);
+      addLogEntry(ap, currentPhotoCode, posters, note, filename, r.folder || "");
 
       lastBlob=null;
       afterPhoto.style.display="none";
@@ -1227,7 +1374,7 @@
       if(extra) s += " | " + extra;
 
       const finalNote = [baseNote, s].filter(Boolean).join(" | ");
-      addLogEntry(ap, "", posters, finalNote, "");
+      addLogEntry(ap, "", posters, finalNote, "", "");
     }
 
     btnExpressDelivered.addEventListener("click", ()=>{
@@ -1299,9 +1446,7 @@
       const ap = cleanCodeInput(apInput.value.trim());
       apInput.value = ap;
 
-      if(!ap || !idx) {
-        return;
-      }
+      if(!ap || !idx) return;
 
       const t = computeTasks(ap);
       if(!t){
@@ -1328,7 +1473,6 @@
 
     apInput.addEventListener("keydown", (e)=>{ if(e.key==="Enter") btnLoad.click(); });
 
-    /* ===== manual code ===== */
     manualCode.addEventListener("input", ()=>{
       const cleaned = cleanCodeInput(manualCode.value);
       if(manualCode.value !== cleaned) manualCode.value = cleaned;
@@ -1363,7 +1507,7 @@
       const rows = log.slice().sort((a,b)=> (a.ts||"").localeCompare(b.ts||""));
       let html = `<table>
         <thead><tr>
-          <th>Čas</th><th>Kto</th><th>AP</th><th>Fotil</th><th>Plagáty</th><th>Poznámka</th><th>Súbor</th>
+          <th>Čas</th><th>Kto</th><th>AP</th><th>Fotil</th><th>Plagáty</th><th>Poznámka</th><th>Súbor</th><th>Priečinok</th>
         </tr></thead><tbody>`;
       for(const r of rows){
         html += `<tr>
@@ -1374,6 +1518,7 @@
           <td>${(r.posters&&r.posters.length)?r.posters.join(", "):"—"}</td>
           <td>${r.note||""}</td>
           <td>${r.file||""}</td>
+          <td>${r.folder||"—"}</td>
         </tr>`;
       }
       html += `</tbody></table>`;
@@ -1389,7 +1534,7 @@
       const day = repDate.value || isoDate(new Date());
       const log = loadLog().filter(x => x.day === day).sort((a,b)=> (a.ts||"").localeCompare(b.ts||""));
       if(log.length === 0){ alert("—"); return; }
-      const header = ["day","time","who","ap","photoCode","posters","note","file"];
+      const header = ["day","time","who","ap","photoCode","posters","note","file","folder"];
       const lines = [header.join(";")];
       for(const r of log){
         lines.push([
@@ -1400,7 +1545,8 @@
           escapeCsv(r.photoCode),
           escapeCsv((r.posters && r.posters.length) ? r.posters.join(", ") : ""),
           escapeCsv(r.note),
-          escapeCsv(r.file)
+          escapeCsv(r.file),
+          escapeCsv(r.folder || "")
         ].join(";"));
       }
       const csv = lines.join("\n");
@@ -1515,6 +1661,9 @@
     repName.addEventListener('change', ()=> localStorage.setItem(REP_KEY, repName.value.trim()));
 
     document.getElementById("appVersion").textContent = APP_VERSION;
+
+    // lux info (pre istotu hneď)
+    updateSaveTargetInfo();
 
     loadDbXlsx();
     apInput.focus();
