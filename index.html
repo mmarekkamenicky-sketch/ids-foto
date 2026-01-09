@@ -135,7 +135,6 @@
       letter-spacing:.01em;
     }
 
-    /* TOP OK overlay */
     #topOkBanner{ display:none; }
     .okFull{
       background:linear-gradient(0deg, rgba(255,212,0,.16), rgba(255,212,0,.16)), #fff;
@@ -163,7 +162,6 @@
     .okTitle{ font-weight:900; font-size:24px; line-height:1.15; }
     .okSub{ color:rgba(11,42,91,.75); font-weight:800; font-size:13px; }
 
-    /* Tasks */
     #tasksCard{ display:none; }
     .task{
       border:none;
@@ -234,11 +232,9 @@
       background:rgba(255,255,255,.92);
     }
 
-    /* After photo */
     #afterPhoto{ display:none; }
     .bigSave{ width:100%; font-size:20px; padding:18px 16px; }
 
-    /* Express area */
     #expressAreaWrap{ display:none; }
     .subcard{
       border:none;
@@ -264,7 +260,6 @@
     .exItem input{ width:auto; margin:0; padding:0; }
     .exItem label{ font-weight:900; cursor:pointer; color:var(--ids-navy); }
 
-    /* Bottom bar */
     .bottomBar{
       margin-top:12px;
       display:flex;
@@ -298,7 +293,6 @@
     th,td{border-bottom:1px solid #eee;padding:8px 6px;font-size:12.5px;vertical-align:top}
     th{text-align:left;font-size:11px;color:#667}
 
-    /* Mini info */
     #miniInfoWrap{ display:none; }
     .miniInfo{ background:#f6f7fb; padding:12px; border-radius:var(--r); }
     .miniTitle{
@@ -337,6 +331,23 @@
       50%{ transform:scale(1.03); filter:brightness(1.05); }
       100%{ transform:scale(1); filter:brightness(1); }
     }
+
+    /* ===== TOAST (tiché hlášky) ===== */
+    #toast{
+      position: fixed;
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      z-index: 9999;
+      display: none;
+      padding: 14px 14px;
+      background: rgba(11,42,91,.92);
+      color: #fff;
+      font-weight: 800;
+      font-size: 13px;
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+    }
   </style>
 </head>
 
@@ -370,7 +381,7 @@
     <!-- Manual / scan result + camera -->
     <div class="card">
       <div class="row">
-        <input id="manualCode" placeholder="Kód (sken / ručne)" autocomplete="off" autocapitalize="characters" />
+        <input id="manualCode" placeholder="Číslo fotky (napr. 5587)" autocomplete="off" inputmode="numeric" />
         <button id="btnCamera" class="btn gray" style="min-width:110px">Foto</button>
       </div>
       <div class="sp"></div>
@@ -405,18 +416,6 @@
     <!-- AFTER PHOTO -->
     <div id="afterPhoto" class="card">
       <button id="btnSavePhoto" class="btn yellow bigSave">Uložiť</button>
-
-      <div class="sp"></div>
-
-      <!-- Lux info o ukladaní -->
-      <div class="row" style="align-items:flex-start">
-        <div style="flex:1">
-          <div id="saveTargetInfo" class="muted" style="line-height:1.35">—</div>
-          <div id="softMsg" class="muted" style="margin-top:6px; display:none; white-space:pre-wrap;"></div>
-        </div>
-        <button id="btnChangeFolder" class="linkBtn" style="white-space:nowrap">Zmeniť priečinok</button>
-      </div>
-
       <div class="sp"></div>
       <div class="row">
         <button id="btnRetake" class="btn gray" style="flex:1">Znova</button>
@@ -494,11 +493,36 @@
     </div>
   </dialog>
 
+  <!-- Delete day dialog -->
+  <dialog id="dlgDeleteDay">
+    <div style="font-weight:900;font-size:18px;color:var(--ids-navy)">Vymazať deň?</div>
+    <div id="delDayText" class="muted" style="margin-top:10px"></div>
+    <div class="sp2"></div>
+    <div class="row">
+      <button id="btnDelDayNo" class="btn gray" style="flex:1">Nie</button>
+      <button id="btnDelDayYes" class="btn red" style="flex:1">Vymazať</button>
+    </div>
+  </dialog>
+
+  <!-- Delete all dialog -->
+  <dialog id="dlgDeleteAll">
+    <div style="font-weight:900;font-size:18px;color:var(--ids-navy)">Vymazať všetko?</div>
+    <div class="muted" style="margin-top:10px">Toto vymaže report za všetky dni.</div>
+    <div class="sp2"></div>
+    <div class="row">
+      <button id="btnDelAllNo" class="btn gray" style="flex:1">Nie</button>
+      <button id="btnDelAllYes" class="btn red" style="flex:1">Vymazať</button>
+    </div>
+  </dialog>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
   <!-- XLSX -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <script>
-    const APP_VERSION = "V26-LUX-SILENT";
+    const APP_VERSION = "V26-TICHY";
 
     /* ===== Service Worker register ===== */
     if ("serviceWorker" in navigator) {
@@ -539,6 +563,7 @@
       return String(ts||"").split("T")[1]?.slice(0,8) || "";
     }
 
+    /* ===== Clean input: AP (uppercase + no spaces) ===== */
     function cleanCodeInput(v){
       let s = String(v ?? "");
       s = s.replace(/\u00A0/g, " ");
@@ -546,6 +571,73 @@
       s = s.replace(/[‐-–—]/g, "-");
       s = s.toUpperCase();
       return s;
+    }
+
+    /* ===== Clean numeric: FOTO KÓD = iba čísla ===== */
+    function cleanNumericCode(v){
+      return String(v ?? "").replace(/\D+/g, "");
+    }
+
+    /* ===== Toast ===== */
+    const toast = document.getElementById("toast");
+    let toastTimer=null;
+    function showToast(msg, ms=1800){
+      toast.textContent = msg;
+      toast.style.display = "block";
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(()=> toast.style.display="none", ms);
+    }
+
+    function refreshCameraButton(){
+      const ok = cleanNumericCode(manualCode.value).length > 0;
+      btnCamera.className = ok ? "btn red" : "btn gray";
+    }
+
+    function downloadNow(blob, filename){
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    }
+
+    function rowHasAnyText(row, fromIdx, toIdx){
+      for(let i=fromIdx;i<=toIdx;i++){
+        if(norm(row[i]) !== "") return true;
+      }
+      return false;
+    }
+    function joinCells(row, fromCol, toCol){
+      const from = colToIndex(fromCol);
+      const to = colToIndex(toCol);
+      const parts=[];
+      for(let i=from;i<=to;i++){
+        const v = norm(row[i]);
+        if(v) parts.push(v);
+      }
+      return parts.join("\n");
+    }
+    function parseEXTokens(s){
+      const t = normCode(s).replace(/[,\.;\/\\]+/g, " ");
+      const parts = t.split(/\s+/).filter(Boolean);
+      const out = [];
+      for(const p of parts){
+        const m = /^EX([1-9])$/.exec(p);
+        if(m) out.push("EX"+m[1]);
+      }
+      return Array.from(new Set(out));
+    }
+    function readExpressPicked(){
+      const picked=[];
+      for(let i=1;i<=9;i++){
+        const ex="EX"+i;
+        const cb=document.getElementById("cb_"+ex);
+        if(cb && cb.checked) picked.push(ex);
+      }
+      return picked;
     }
 
     /* ===== Elements ===== */
@@ -581,10 +673,6 @@
     const btnBack = document.getElementById('btnBack');
     const photoInput = document.getElementById('photoInput');
 
-    const saveTargetInfo = document.getElementById('saveTargetInfo');
-    const softMsg = document.getElementById('softMsg');
-    const btnChangeFolder = document.getElementById('btnChangeFolder');
-
     const btnMiniScan = document.getElementById('btnMiniScan');
     const btnMiniReport = document.getElementById('btnMiniReport');
     const panelScan = document.getElementById('panelScan');
@@ -619,195 +707,14 @@
     const btnFinishNo = document.getElementById('btnFinishNo');
     const btnFinishYes = document.getElementById('btnFinishYes');
 
-    function refreshCameraButton(){
-      const ok = manualCode.value.trim().length > 0;
-      btnCamera.className = ok ? "btn red" : "btn gray";
-    }
+    const dlgDeleteDay = document.getElementById('dlgDeleteDay');
+    const delDayText = document.getElementById('delDayText');
+    const btnDelDayNo = document.getElementById('btnDelDayNo');
+    const btnDelDayYes = document.getElementById('btnDelDayYes');
 
-    /* ===== Soft message (tichý režim) ===== */
-    function showSoftMsg(text, ms=1600){
-      if(!softMsg) return;
-      softMsg.textContent = text || "";
-      softMsg.style.display = text ? "block" : "none";
-      if(text){
-        clearTimeout(showSoftMsg._t);
-        showSoftMsg._t = setTimeout(()=>{ softMsg.style.display="none"; }, ms);
-      }
-    }
-
-    /* ===== Basic download fallback ===== */
-    function downloadNow(blob, filename){
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(()=>URL.revokeObjectURL(url), 4000);
-    }
-
-    /* =========================================================
-       ✅ LUX SAVE: IDS Foto / YYYY-MM-DD (auto, ticho)
-    ========================================================= */
-    const FS_DB_NAME = "ids_foto_fs";
-    const FS_STORE = "kv";
-    const FS_KEY_ROOT = "rootDirHandle";
-
-    const LUX_LAST_TARGET_KEY = "ids_last_target_v26";
-    const LUX_LAST_DAY_KEY    = "ids_last_day_v26";
-
-    function idbOpen(){
-      return new Promise((resolve, reject)=>{
-        const req = indexedDB.open(FS_DB_NAME, 1);
-        req.onupgradeneeded = () => {
-          const db = req.result;
-          if(!db.objectStoreNames.contains(FS_STORE)){
-            db.createObjectStore(FS_STORE);
-          }
-        };
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      });
-    }
-    async function idbSet(key, value){
-      const db = await idbOpen();
-      return new Promise((resolve, reject)=>{
-        const tx = db.transaction(FS_STORE, "readwrite");
-        tx.objectStore(FS_STORE).put(value, key);
-        tx.oncomplete = () => resolve(true);
-        tx.onerror = () => reject(tx.error);
-      });
-    }
-    async function idbGet(key){
-      const db = await idbOpen();
-      return new Promise((resolve, reject)=>{
-        const tx = db.transaction(FS_STORE, "readonly");
-        const req = tx.objectStore(FS_STORE).get(key);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      });
-    }
-
-    async function ensurePermission(dirHandle){
-      if(!dirHandle) return false;
-      try{
-        const q = await dirHandle.queryPermission({ mode:"readwrite" });
-        if(q === "granted") return true;
-        const r = await dirHandle.requestPermission({ mode:"readwrite" });
-        return r === "granted";
-      }catch(e){
-        return false;
-      }
-    }
-
-    async function getOrPickRootDir(forcePick=false){
-      if(!window.showDirectoryPicker) return null;
-
-      if(!forcePick){
-        let handle = null;
-        try{ handle = await idbGet(FS_KEY_ROOT); }catch(e){}
-        if(handle && await ensurePermission(handle)){
-          return handle;
-        }
-      }
-
-      try{
-        const picked = await window.showDirectoryPicker({ mode:"readwrite" });
-        const ok = await ensurePermission(picked);
-        if(!ok) return null;
-        try{ await idbSet(FS_KEY_ROOT, picked); }catch(e){}
-        return picked;
-      }catch(e){
-        return null;
-      }
-    }
-
-    function luxTargetForToday(){
-      const day = isoDate(new Date());
-      return `IDS Foto/${day}`;
-    }
-
-    function updateSaveTargetInfo(){
-      const today = isoDate(new Date());
-      const target = luxTargetForToday();
-      const lastTarget = localStorage.getItem(LUX_LAST_TARGET_KEY) || "";
-      if(lastTarget && lastTarget.endsWith(today)){
-        saveTargetInfo.textContent = `Ukladám do: ${lastTarget}`;
-      }else{
-        saveTargetInfo.textContent = `Ukladám do: ${target}`;
-      }
-    }
-
-    async function saveBlobToAutoFolder(blob, filename){
-      // ticho – ak nie je API, len sa vráti fail a spadne to do downloadu
-      if(!window.showDirectoryPicker) return { ok:false, via:"no-dir-api" };
-
-      const root = await getOrPickRootDir(false);
-      if(!root) return { ok:false, via:"no-root" };
-
-      const folderMain = "IDS Foto";
-      const folderDay = isoDate(new Date());
-
-      try{
-        const idsDir = await root.getDirectoryHandle(folderMain, { create:true });
-        const dayDir = await idsDir.getDirectoryHandle(folderDay, { create:true });
-
-        const fileHandle = await dayDir.getFileHandle(filename, { create:true });
-        const writable = await fileHandle.createWritable();
-        await writable.write(blob);
-        await writable.close();
-
-        const target = `${folderMain}/${folderDay}`;
-        localStorage.setItem(LUX_LAST_TARGET_KEY, target);
-        localStorage.setItem(LUX_LAST_DAY_KEY, folderDay);
-
-        return { ok:true, via:"auto-folder", folder: target };
-      }catch(e){
-        return { ok:false, via:"auto-folder-fail" };
-      }
-    }
-
-    async function saveBlobAsFile(blob, filename){
-      // 1) pokus o auto-folder
-      const auto = await saveBlobToAutoFolder(blob, filename);
-      if(auto.ok) return auto;
-
-      // 2) pokus o save picker (ak existuje) – ticho, bez alertov
-      try{
-        if(window.showSaveFilePicker){
-          const handle = await window.showSaveFilePicker({
-            suggestedName: filename,
-            types: [{ description: "JPEG obrázok", accept: { "image/jpeg": [".jpg", ".jpeg"] } }]
-          });
-          const writable = await handle.createWritable();
-          await writable.write(blob);
-          await writable.close();
-          return { ok:true, via:"picker", folder:"(vybrané ručne)" };
-        }
-      }catch(e){}
-
-      // 3) fallback download – vždy
-      try{
-        downloadNow(blob, filename);
-        return { ok:true, via:"download", folder:"(stiahnuté)" };
-      }catch(e){
-        return { ok:false, via:"none" };
-      }
-    }
-
-    // Zmeniť priečinok – zobrazíme len ak to má zmysel
-    if(!window.showDirectoryPicker){
-      btnChangeFolder.style.display = "none";
-    }
-    btnChangeFolder.addEventListener("click", async ()=>{
-      if(!window.showDirectoryPicker) return;
-      const h = await getOrPickRootDir(true);
-      if(h){
-        updateSaveTargetInfo();
-        showSoftMsg("Priečinok nastavený ✓", 1200);
-      }
-    });
+    const dlgDeleteAll = document.getElementById('dlgDeleteAll');
+    const btnDelAllNo = document.getElementById('btnDelAllNo');
+    const btnDelAllYes = document.getElementById('btnDelAllYes');
 
     /* ===== DB ===== */
     let dbRows=null, idx=null;
@@ -850,52 +757,15 @@
       }
     }
 
-    function rowHasAnyText(row, fromIdx, toIdx){
-      for(let i=fromIdx;i<=toIdx;i++){
-        if(norm(row[i]) !== "") return true;
-      }
-      return false;
-    }
-    function joinCells(row, fromCol, toCol){
-      const from = colToIndex(fromCol);
-      const to = colToIndex(toCol);
-      const parts=[];
-      for(let i=from;i<=to;i++){
-        const v = norm(row[i]);
-        if(v) parts.push(v);
-      }
-      return parts.join("\n");
-    }
-
-    function parseEXTokens(s){
-      const t = normCode(s).replace(/[,\.;\/\\]+/g, " ");
-      const parts = t.split(/\s+/).filter(Boolean);
-      const out = [];
-      for(const p of parts){
-        const m = /^EX([1-9])$/.exec(p);
-        if(m) out.push("EX"+m[1]);
-      }
-      return Array.from(new Set(out));
-    }
-    function readExpressPicked(){
-      const picked=[];
-      for(let i=1;i<=9;i++){
-        const ex="EX"+i;
-        const cb=document.getElementById("cb_"+ex);
-        if(cb && cb.checked) picked.push(ex);
-      }
-      return picked;
-    }
-
     function getPostersFromRow(row){
       if(!row) return [];
       const from = colToIndex("AG");
       const to   = colToIndex("AM");
       const set = new Set();
       for(let i=from;i<=to;i++){
-        const v = norm(row[i]);
-        if(!v) continue;
-        v.split(/[\s,;\/]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>set.add(x));
+        const v0 = norm(row[i]);
+        if(!v0) continue;
+        v0.split(/[\s,;\/]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>set.add(x));
       }
       return Array.from(set);
     }
@@ -947,6 +817,7 @@
     let currentPhotoCode="";
     let lastBlob=null;
 
+    /* Express state */
     let expressStatus="NA";
     let expressSuggested=[];
 
@@ -981,13 +852,13 @@
     }
 
     /* ===== LOG ===== */
-    const LOG_KEY="ids_foto_log_v26";
+    const LOG_KEY="ids_foto_log_v26_tichy";
     const REP_KEY="ids_rep_name_v26";
 
     function loadLog(){ try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); } catch { return []; } }
     function saveLog(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)); }
 
-    function addLogEntry(ap, photoCode, posters, note, file, folder){
+    function addLogEntry(ap, photoCode, posters, note, file){
       const now = new Date();
       const entry = {
         ts: now.toISOString().slice(0,19),
@@ -997,8 +868,7 @@
         photoCode: photoCode || "",
         posters: posters || [],
         note: note || "",
-        file: file || "",
-        folder: folder || ""
+        file: file || ""
       };
       const log = loadLog();
       log.push(entry);
@@ -1137,11 +1007,18 @@
 
           const base=t.staticBase||"";
           if(!base) return;
-          manualCode.value = cleanCodeInput(base + s);
-          scanHint.style.display="none";
-          refreshCameraButton();
-          currentPhotoCode = manualCode.value.trim();
-          openCamera();
+          // v tichom režime NEvnucujeme suffix do názvu súboru
+          // iba nastavíme do políčka "manualCode" číslo (ak je v DB číselné)
+          const numeric = cleanNumericCode(base);
+          if(numeric){
+            manualCode.value = numeric;
+            scanHint.style.display="none";
+            refreshCameraButton();
+            currentPhotoCode = manualCode.value.trim();
+            openCamera();
+          }else{
+            showToast("Zadaj číslo fotky.", 1800);
+          }
         });
         suffixWrap.appendChild(b);
       });
@@ -1153,11 +1030,15 @@
 
       div.addEventListener("click", ()=>{
         const base=t.staticBase||"";
-        if(!base) return;
-        manualCode.value=cleanCodeInput(base);
+        const numeric = cleanNumericCode(base);
+        if(!numeric){
+          showToast("Zadaj číslo fotky.", 1800);
+          return;
+        }
+        manualCode.value=numeric;
         scanHint.style.display="none";
         refreshCameraButton();
-        currentPhotoCode=base;
+        currentPhotoCode=numeric;
         openCamera();
       });
 
@@ -1209,7 +1090,9 @@
           hint:t.standHint,
           done,
           onClick: ()=>{
-            manualCode.value=cleanCodeInput(t.standCode);
+            const numeric = cleanNumericCode(t.standCode);
+            if(!numeric){ showToast("Zadaj číslo fotky.", 1800); return; }
+            manualCode.value=numeric;
             scanHint.style.display="none";
             refreshCameraButton();
             currentPhotoCode=manualCode.value;
@@ -1226,7 +1109,9 @@
           hint:t.b1Hint,
           done,
           onClick: ()=>{
-            manualCode.value=cleanCodeInput(t.b1Code);
+            const numeric = cleanNumericCode(t.b1Code);
+            if(!numeric){ showToast("Zadaj číslo fotky.", 1800); return; }
+            manualCode.value=numeric;
             scanHint.style.display="none";
             refreshCameraButton();
             currentPhotoCode=manualCode.value;
@@ -1270,7 +1155,9 @@
 
     /* ===== PHOTO FLOW ===== */
     function openCamera(){
-      if(!manualCode.value.trim()) return;
+      const c = cleanNumericCode(manualCode.value);
+      if(!c) { showToast("Zadaj číslo.", 1400); return; }
+      manualCode.value = c;
       photoInput.value="";
       photoInput.click();
     }
@@ -1281,8 +1168,6 @@
         lastBlob = f;
         afterPhoto.style.display = "block";
         tasksCard.style.display = "none";
-        updateSaveTargetInfo();
-        showSoftMsg("", 1);
         return true;
       }
       return false;
@@ -1291,7 +1176,6 @@
     photoInput.addEventListener("change", () => {
       if (showSaveIfFileReturned()) return;
 
-      // tichý fallback: nič nevyhadzujeme, len krátky jemný text
       setTimeout(() => {
         if (showSaveIfFileReturned()) return;
 
@@ -1301,8 +1185,7 @@
           lastBlob = null;
           afterPhoto.style.display = "none";
           tasksCard.style.display = currentTasks ? "block" : "none";
-          // bez strašenia – len jemný hint
-          showSoftMsg("Foto sa neuložilo. Skús ešte raz.", 1400);
+          showToast("Foto sa neuložilo. Skús ešte raz.", 2200);
         }, 500);
       }, 200);
     });
@@ -1317,48 +1200,20 @@
       }
     });
 
-    // Znova = otvorí kameru znovu (pri zachovanom kóde)
-    btnRetake.addEventListener("click", ()=>{
-      if(!manualCode.value.trim()){
-        showSoftMsg("Chýba kód.", 1200);
-        return;
-      }
-      openCamera();
-    });
+    btnSavePhoto.addEventListener('click', ()=>{
+      if(!lastBlob){ showToast("Chýba fotografia.", 1600); return; }
 
-    // Späť = vráti na tasks (bez uloženia)
-    btnBack.addEventListener("click", ()=>{
-      lastBlob = null;
-      afterPhoto.style.display="none";
-      tasksCard.style.display = currentTasks ? "block" : "none";
-    });
-
-    btnSavePhoto.addEventListener('click', async ()=>{
-      if(!lastBlob){ showSoftMsg("Chýba fotografia.", 1200); return; }
-
-      const code = cleanCodeInput(manualCode.value);
+      // FOTO KÓD = IBA ČÍSLA
+      const code = cleanNumericCode(manualCode.value);
       manualCode.value = code;
-      if(!code){ showSoftMsg("Chýba kód.", 1200); return; }
+      if(!code){ showToast("Zadaj číslo.", 1600); return; }
 
       currentPhotoCode = code;
       const filename = safeName(currentPhotoCode) + ".jpg";
 
-      btnSavePhoto.disabled = true;
-      const oldTxt = btnSavePhoto.textContent;
-      btnSavePhoto.textContent = "Ukladám…";
-
-      const r = await saveBlobAsFile(lastBlob, filename);
-
-      btnSavePhoto.disabled = false;
-      btnSavePhoto.textContent = oldTxt;
-
-      if(!r.ok){
-        showSoftMsg("Nepodarilo sa uložiť. Skús znova.", 1600);
-        return;
-      }
-
-      updateSaveTargetInfo();
-      showSoftMsg("Uložené ✓", 1100);
+      // TICHÝ REŽIM: klasický download do Downloads (bez priečinkov, bez povolení)
+      downloadNow(lastBlob, filename);
+      showToast("Uložené ✓", 1200);
 
       const ap = currentTasks?.ap || normCode(apInput.value);
 
@@ -1373,7 +1228,7 @@
       }
 
       const note = norm(noteText.value);
-      addLogEntry(ap, currentPhotoCode, posters, note, filename, r.folder || "");
+      addLogEntry(ap, currentPhotoCode, posters, note, filename);
 
       lastBlob=null;
       afterPhoto.style.display="none";
@@ -1382,6 +1237,18 @@
       if(currentTasks){
         renderTasks();
       }
+    });
+
+    btnRetake.addEventListener("click", ()=>{
+      afterPhoto.style.display="none";
+      lastBlob=null;
+      openCamera();
+    });
+
+    btnBack.addEventListener("click", ()=>{
+      afterPhoto.style.display="none";
+      lastBlob=null;
+      tasksCard.style.display = currentTasks ? "block" : "none";
     });
 
     /* ===== EXPRESS ===== */
@@ -1398,7 +1265,7 @@
       if(extra) s += " | " + extra;
 
       const finalNote = [baseNote, s].filter(Boolean).join(" | ");
-      addLogEntry(ap, "", posters, finalNote, "", "");
+      addLogEntry(ap, "", posters, finalNote, "");
     }
 
     btnExpressDelivered.addEventListener("click", ()=>{
@@ -1407,6 +1274,7 @@
       const s = "EXPRESS: " + (pickedNow.join(" ") || "ODOVZDANÝ");
       logExpress(s);
       expressAreaWrap.style.display="none";
+      showToast("Express uložený ✓", 1200);
       renderTasks();
     });
 
@@ -1414,6 +1282,7 @@
       expressStatus = "NOT";
       logExpress("EXPRESS: NEODOVZDANÝ");
       expressAreaWrap.style.display="none";
+      showToast("Express uložený ✓", 1200);
       renderTasks();
     });
 
@@ -1470,7 +1339,10 @@
       const ap = cleanCodeInput(apInput.value.trim());
       apInput.value = ap;
 
-      if(!ap || !idx) return;
+      if(!ap || !idx) {
+        // v tichom režime nič nehlásime
+        return;
+      }
 
       const t = computeTasks(ap);
       if(!t){
@@ -1497,8 +1369,9 @@
 
     apInput.addEventListener("keydown", (e)=>{ if(e.key==="Enter") btnLoad.click(); });
 
+    /* ===== manual code ===== */
     manualCode.addEventListener("input", ()=>{
-      const cleaned = cleanCodeInput(manualCode.value);
+      const cleaned = cleanNumericCode(manualCode.value);
       if(manualCode.value !== cleaned) manualCode.value = cleaned;
 
       scanHint.style.display="none";
@@ -1511,9 +1384,9 @@
     });
 
     btnCamera.addEventListener("click", ()=>{
-      const c = cleanCodeInput(manualCode.value.trim());
+      const c = cleanNumericCode(manualCode.value.trim());
       manualCode.value = c;
-      if(!c) return;
+      if(!c) { showToast("Zadaj číslo.", 1400); return; }
       currentPhotoCode=c;
       openCamera();
     });
@@ -1531,7 +1404,7 @@
       const rows = log.slice().sort((a,b)=> (a.ts||"").localeCompare(b.ts||""));
       let html = `<table>
         <thead><tr>
-          <th>Čas</th><th>Kto</th><th>AP</th><th>Fotil</th><th>Plagáty</th><th>Poznámka</th><th>Súbor</th><th>Priečinok</th>
+          <th>Čas</th><th>Kto</th><th>AP</th><th>Fotil</th><th>Plagáty</th><th>Poznámka</th><th>Súbor</th>
         </tr></thead><tbody>`;
       for(const r of rows){
         html += `<tr>
@@ -1542,7 +1415,6 @@
           <td>${(r.posters&&r.posters.length)?r.posters.join(", "):"—"}</td>
           <td>${r.note||""}</td>
           <td>${r.file||""}</td>
-          <td>${r.folder||"—"}</td>
         </tr>`;
       }
       html += `</tbody></table>`;
@@ -1557,8 +1429,8 @@
     function exportCsv(){
       const day = repDate.value || isoDate(new Date());
       const log = loadLog().filter(x => x.day === day).sort((a,b)=> (a.ts||"").localeCompare(b.ts||""));
-      if(log.length === 0) return;
-      const header = ["day","time","who","ap","photoCode","posters","note","file","folder"];
+      if(log.length === 0){ showToast("Nič na export.", 1400); return; }
+      const header = ["day","time","who","ap","photoCode","posters","note","file"];
       const lines = [header.join(";")];
       for(const r of log){
         lines.push([
@@ -1569,14 +1441,14 @@
           escapeCsv(r.photoCode),
           escapeCsv((r.posters && r.posters.length) ? r.posters.join(", ") : ""),
           escapeCsv(r.note),
-          escapeCsv(r.file),
-          escapeCsv(r.folder || "")
+          escapeCsv(r.file)
         ].join(";"));
       }
       const csv = lines.join("\n");
       const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
       const filename = `report_${day}_${safeName(repName.value || "repre")}.csv`;
       downloadNow(blob, filename);
+      showToast("CSV uložené ✓", 1200);
     }
 
     function deleteLogsForDay(day){
@@ -1598,27 +1470,44 @@
     });
     btnExportCsv.addEventListener("click", exportCsv);
 
+    // Namiesto confirm -> vlastný dialog
     btnDeleteDay.addEventListener("click", ()=>{
       const day = repDate.value || isoDate(new Date());
-      if(!confirm(`Vymazať report len pre deň ${day}?`)) return;
-      deleteLogsForDay(day);
-      if(reportWrap.style.display === "block") renderReport();
-    });
-    btnDeleteAll.addEventListener("click", ()=>{
-      if(!confirm("Vymazať CELÝ report (všetky dni)?")) return;
-      if(!confirm("Naozaj? Toto sa nedá vrátiť späť.")) return;
-      deleteLogsAll();
-      if(reportWrap.style.display === "block") renderReport();
+      delDayText.textContent = `Vymazať report len pre deň ${day}?`;
+      dlgDeleteDay.showModal();
     });
 
-    /* ===== SCAN (ticho) ===== */
+    btnDelDayNo.addEventListener("click", ()=> dlgDeleteDay.close());
+    btnDelDayYes.addEventListener("click", ()=>{
+      const day = repDate.value || isoDate(new Date());
+      deleteLogsForDay(day);
+      dlgDeleteDay.close();
+      if(reportWrap.style.display === "block") renderReport();
+      showToast("Vymazané ✓", 1200);
+    });
+
+    btnDeleteAll.addEventListener("click", ()=>{
+      dlgDeleteAll.showModal();
+    });
+
+    btnDelAllNo.addEventListener("click", ()=> dlgDeleteAll.close());
+    btnDelAllYes.addEventListener("click", ()=>{
+      deleteLogsAll();
+      dlgDeleteAll.close();
+      if(reportWrap.style.display === "block") renderReport();
+      showToast("Vymazané ✓", 1200);
+    });
+
+    /* ===== SCAN ===== */
     let stream=null, scanning=false;
     function stopStream(){ if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } }
     function stopScan(){ scanning=false; stopStream(); }
 
     async function startScan(){
-      // ticho – ak nie je podporované, nič nevyskakuje
-      if(!('BarcodeDetector' in window)) return;
+      if(!('BarcodeDetector' in window)) {
+        showToast("Sken nie je dostupný. Zadaj číslo ručne.", 2200);
+        return;
+      }
       if(scanning) return;
 
       scanning=true;
@@ -1642,18 +1531,23 @@
             if(codes && codes.length){
               const raw = (codes[0].rawValue || "").trim();
               if(raw){
-                manualCode.value = cleanCodeInput(raw);
-                scanHint.style.display = "block";
-                refreshCameraButton();
+                const numeric = cleanNumericCode(raw);
+                if(numeric){
+                  manualCode.value = numeric;
+                  scanHint.style.display = "block";
+                  refreshCameraButton();
 
-                stopScan();
-                panelScan.style.display="none";
+                  stopScan();
+                  panelScan.style.display="none";
 
-                btnCamera.classList.add("pulse");
-                setTimeout(()=>btnCamera.classList.remove("pulse"), 1200);
+                  btnCamera.classList.add("pulse");
+                  setTimeout(()=>btnCamera.classList.remove("pulse"), 1200);
 
-                window.scrollTo({ top:0, behavior:"smooth" });
-                return;
+                  window.scrollTo({ top:0, behavior:"smooth" });
+                  return;
+                }else{
+                  showToast("Sken neobsahuje číslo.", 1800);
+                }
               }
             }
           }catch(e){}
@@ -1662,6 +1556,7 @@
         requestAnimationFrame(loop);
       }catch(e){
         stopScan();
+        showToast("Sken sa nespustil.", 1600);
       }
     }
 
@@ -1684,7 +1579,6 @@
 
     document.getElementById("appVersion").textContent = APP_VERSION;
 
-    updateSaveTargetInfo();
     loadDbXlsx();
     apInput.focus();
   </script>
