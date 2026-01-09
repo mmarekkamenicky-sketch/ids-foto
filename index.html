@@ -1,409 +1,1462 @@
-<script>
-/* =========================================================
-   IDS FOTO APP – FULL JS (s čistením vstupu)
-   Verzia: V26+
-========================================================= */
+<!doctype html>
+<html lang="sk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>IDS Foto</title>
 
-const APP_VERSION = "V26+";
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#ffd400">
 
-/* ====== KONFIG STĹPCOV ====== */
-const COL_MAIN_AP = "AP";
-const COL_STAND_FROM="AG", COL_STAND_TO="AJ";
-const COL_B1="AK";
-const COL_STATIC="AM";
-const COL_EXPRESS="AL";
+  <!-- Montserrat -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 
-const COL_STAND_CODE="B";
-const COL_B1_CODE="C";
-const COL_STATIC_CODE="AO";
+  <style>
+    :root{
+      --ids-yellow:#ffd400;
+      --ids-cycla:#e6007e;
+      --ids-navy:#0b2a5b;
 
-const COL_CITY="F", COL_STREET="G", COL_HOUSE="H", COL_NAME="J", COL_SURNAME="K", COL_PHARMACY="L";
+      --ids-soft:#f4f6fb;
+      --ids-soft2:#fff4bf;
 
-/* ====== HELPERS ====== */
-function colToIndex(letter){
-  let s = String(letter).toUpperCase().replace(/[^A-Z]/g,"");
-  let n = 0;
-  for (let i=0;i<s.length;i++) n = n*26 + (s.charCodeAt(i)-64);
-  return n-1;
-}
+      --ids-green:#118a3c;
+      --ids-greenBg:#ecf8f0;
 
-function norm(v){ return String(v ?? "").trim(); }
-function normCode(v){ return norm(v).toUpperCase(); }
+      --ids-red:#b00020;
 
-function safeName(s){ return norm(s).replace(/[\\/:*?"<>|]+/g, "_"); }
+      --bg:#ffffff;
+      --text:var(--ids-navy);
+      --muted:rgba(11,42,91,.65);
 
-function isoDate(d){
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
-  const day = String(d.getDate()).padStart(2,"0");
-  return `${y}-${m}-${day}`;
-}
+      --soft:var(--ids-soft);
+      --yellow:var(--ids-yellow);
+      --yellow2:var(--ids-soft2);
+      --green:var(--ids-green);
+      --greenBg:var(--ids-greenBg);
+      --red:var(--ids-red);
 
-function fmtTime(ts){
-  return String(ts||"").split("T")[1]?.slice(0,8) || "";
-}
-
-/* ====== ČISTENIE VSTUPU (VEĽKÉ PÍSMENÁ, BEZ MEDZIER) ====== */
-function cleanCodeInput(v){
-  let s = String(v ?? "");
-  s = s.replace(/\u00A0/g, " ");     // NBSP
-  s = s.replace(/\s+/g, "");        // žiadne medzery
-  s = s.replace(/[‐-–—]/g, "-");    // zjednotenie pomlčiek
-  s = s.toUpperCase();              // veľké písmená
-  return s;
-}
-
-/* ====== ELEMENTY ====== */
-const apInput = document.getElementById('apInput');
-const manualCode = document.getElementById('manualCode');
-const btnLoad = document.getElementById('btnLoad');
-const btnCamera = document.getElementById('btnCamera');
-const scanHint = document.getElementById('scanHint');
-const tasksCard = document.getElementById('tasksCard');
-const taskList = document.getElementById('taskList');
-const afterPhoto = document.getElementById('afterPhoto');
-const btnSavePhoto = document.getElementById('btnSavePhoto');
-const btnRetake = document.getElementById('btnRetake');
-const btnBack = document.getElementById('btnBack');
-const photoInput = document.getElementById('photoInput');
-const btnMiniScan = document.getElementById('btnMiniScan');
-const btnMiniReport = document.getElementById('btnMiniReport');
-const panelScan = document.getElementById('panelScan');
-const panelReport = document.getElementById('panelReport');
-const video = document.getElementById('video');
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d', { willReadFrequently: true });
-const btnStopScan = document.getElementById('btnStopScan');
-const repName = document.getElementById('repName');
-const repDate = document.getElementById('repDate');
-const btnToggleReport = document.getElementById('btnToggleReport');
-const btnExportCsv = document.getElementById('btnExportCsv');
-const reportWrap = document.getElementById('reportWrap');
-const btnDeleteDay = document.getElementById('btnDeleteDay');
-const btnDeleteAll = document.getElementById('btnDeleteAll');
-const noteText = document.getElementById('noteText');
-const miniInfoWrap = document.getElementById('miniInfoWrap');
-const miniAddress = document.getElementById('miniAddress');
-const miniPerson = document.getElementById('miniPerson');
-const miniPharmacy = document.getElementById('miniPharmacy');
-const miniPosters = document.getElementById('miniPosters');
-const appVersion = document.getElementById("appVersion");
-
-/* ====== STAV ====== */
-let dbRows=null, idx=null;
-let currentTasks=null;
-let currentPhotoCode="";
-let lastBlob=null;
-
-/* ====== INDEXY ====== */
-const IDX_AP = colToIndex(COL_MAIN_AP);
-const IDX_STAND_FROM = colToIndex(COL_STAND_FROM);
-const IDX_STAND_TO = colToIndex(COL_STAND_TO);
-const IDX_B1 = colToIndex(COL_B1);
-const IDX_STATIC = colToIndex(COL_STATIC);
-const IDX_EXPRESS = colToIndex(COL_EXPRESS);
-const IDX_STAND_CODE = colToIndex(COL_STAND_CODE);
-const IDX_B1_CODE = colToIndex(COL_B1_CODE);
-const IDX_STATIC_CODE = colToIndex(COL_STATIC_CODE);
-const IDX_CITY = colToIndex(COL_CITY);
-const IDX_STREET = colToIndex(COL_STREET);
-const IDX_HOUSE = colToIndex(COL_HOUSE);
-const IDX_NAME = colToIndex(COL_NAME);
-const IDX_SURNAME = colToIndex(COL_SURNAME);
-const IDX_PHARMACY = colToIndex(COL_PHARMACY);
-
-/* ====== UTILITY ====== */
-function refreshCameraButton(){
-  const ok = manualCode.value.trim().length > 0;
-  btnCamera.className = ok ? "btn red" : "btn gray";
-}
-
-function downloadNow(blob, filename){
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url), 4000);
-}
-
-/* ====== NAČÍTANIE DATABÁZY ====== */
-async function loadDbXlsx(){
-  try{
-    const res = await fetch("./db.xlsx", { cache:"no-cache" });
-    if(!res.ok) throw new Error("db.xlsx not found");
-    const buf = await res.arrayBuffer();
-    const wb = XLSX.read(buf, { type:"array" });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    dbRows = XLSX.utils.sheet_to_json(ws, { header:1, defval:"" });
-
-    idx = { byAP:new Map() };
-    for(const row of dbRows){
-      const ap = normCode(row[IDX_AP]);
-      if(ap) idx.byAP.set(ap, row);
+      --r:14px;
+      --shadow: 0 10px 30px rgba(11,42,91,.08);
     }
-  }catch(e){
-    console.error("DB load error:", e);
-    dbRows=null; idx=null;
-  }
-}
 
-/* ====== PLAGÁTY Z RIADKU ====== */
-function getPostersFromRow(row){
-  if(!row) return [];
-  const from = colToIndex("AG");
-  const to   = colToIndex("AM");
-  const set = new Set();
-  for(let i=from;i<=to;i++){
-    const v = norm(row[i]);
-    if(!v) continue;
-    v.split(/[\s,;\/]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>set.add(x));
-  }
-  return Array.from(set);
-}
+    *{ box-sizing:border-box; border-radius:var(--r); }
 
-/* ====== MINI INFO ====== */
-function renderMiniInfo(row){
-  if(!row){
-    miniInfoWrap.style.display="none";
-    return;
-  }
-  const city = norm(row[IDX_CITY]);
-  const street = norm(row[IDX_STREET]);
-  const house = norm(row[IDX_HOUSE]);
-  const name = norm(row[IDX_NAME]);
-  const surname = norm(row[IDX_SURNAME]);
-  const pharmacy = norm(row[IDX_PHARMACY]);
+    body{
+      font-family: Montserrat, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      margin:14px;
+      max-width:720px;
+    }
 
-  miniAddress.textContent = [city, street, house].filter(Boolean).join(", ") || "—";
-  miniPerson.textContent = [name, surname].filter(Boolean).join(" ") || "—";
-  miniPharmacy.textContent = pharmacy || "—";
+    .card{
+      border:none;
+      padding:14px;
+      background:#fff;
+      box-shadow: var(--shadow);
+    }
 
-  const posters = getPostersFromRow(row);
-  miniPosters.innerHTML="";
-  if(posters.length){
-    posters.forEach(p=>{
-      const d=document.createElement("div");
-      d.className="miniPill";
-      d.textContent=p;
-      miniPosters.appendChild(d);
-    });
-  }else{
-    miniPosters.textContent="—";
-  }
-  miniInfoWrap.style.display="block";
-}
+    .row{ display:flex; gap:10px; align-items:center; }
+    .col{ display:flex; flex-direction:column; gap:10px; }
 
-/* ====== ÚLOHY PRE PLOCHU ====== */
-function computeTasks(ap){
-  if(!idx) return null;
-  const apN = normCode(ap);
-  const row = idx.byAP.get(apN);
-  if(!row) return null;
+    input, textarea{
+      width:100%;
+      padding:14px 14px;
+      border:none;
+      font-size:16px;
+      background:var(--soft);
+      color:var(--ids-navy);
+      font-family: inherit;
+      outline:none;
+      font-weight:800;
+      border-radius:var(--r);
+    }
+    textarea{
+      min-height:72px;
+      resize:vertical;
+      font-weight:700;
+    }
 
-  const needStand = row[IDX_STAND_FROM] || row[IDX_STAND_TO];
-  const needB1 = norm(row[IDX_B1]) !== "";
-  const needStatic = norm(row[IDX_STATIC]) !== "";
+    .btn{
+      border:0;
+      padding:14px 16px;
+      font-weight:900;
+      font-size:16px;
+      cursor:pointer;
+      background:var(--ids-navy);
+      color:#fff;
+      border-radius:var(--r);
+    }
+    .btn.yellow{
+      background:var(--ids-yellow);
+      color:var(--ids-navy);
+      font-size:18px;
+      padding:16px 16px;
+    }
+    .btn.gray{
+      background:#e9eef7;
+      color:var(--ids-navy);
+    }
+    .btn.green{
+      background:var(--ids-green);
+      color:#fff;
+      font-size:18px;
+      padding:16px 16px;
+    }
+    .btn.red{
+      background:var(--ids-cycla);
+      color:#fff;
+      font-size:18px;
+      padding:16px 16px;
+    }
 
-  return {
-    ap: apN,
-    row,
-    needStand,
-    needB1,
-    needStatic,
-    standCode: norm(row[IDX_STAND_CODE]),
-    b1Code: norm(row[IDX_B1_CODE]),
-    staticBase: norm(row[IDX_STATIC_CODE])
-  };
-}
+    .linkBtn{
+      border:0;
+      background:transparent;
+      color:rgba(11,42,91,.75);
+      font-weight:900;
+      font-size:13px;
+      padding:8px 10px;
+      cursor:pointer;
+      text-decoration:underline;
+      border-radius:12px;
+    }
 
-/* ====== NAČÍTANIE PLOCHY ====== */
-btnLoad.addEventListener("click", ()=>{
-  const ap = cleanCodeInput(apInput.value);
-  apInput.value = ap;
-  if(!ap || !idx) return;
+    .sp{height:10px}
+    .sp2{height:14px}
 
-  const t = computeTasks(ap);
-  if(!t){
-    tasksCard.style.display="none";
-    renderMiniInfo(null);
-    currentTasks=null;
-    return;
-  }
+    /* AP panel - menší, hore input, pod ním tlačidlo */
+    .apInput{
+      font-size:18px !important;
+      padding:14px 14px !important;
+      font-weight:900 !important;
+      letter-spacing:.01em;
+    }
 
-  currentTasks = t;
-  renderMiniInfo(t.row);
-  renderTasks();
-  tasksCard.style.display="block";
-});
+    /* TOP OK overlay */
+    #topOkBanner{ display:none; }
+    .okFull{
+      background:linear-gradient(0deg, rgba(255,212,0,.16), rgba(255,212,0,.16)), #fff;
+      color:var(--ids-navy);
+      padding:18px;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      min-height:58vh;
+      border-radius:var(--r);
+      box-shadow: var(--shadow);
+    }
+    .okIcon{
+      width:68px;height:68px;
+      display:flex;align-items:center;justify-content:center;
+      background:rgba(230,0,126,.10);
+      color:var(--ids-cycla);
+      border-radius:999px;
+      font-size:36px;
+      font-weight:900;
+    }
+    .okTitle{ font-weight:900; font-size:24px; line-height:1.15; }
+    .okSub{ color:rgba(11,42,91,.75); font-weight:800; font-size:13px; }
 
-/* ====== VYKRESLENIE ÚLOH ====== */
-function renderTasks(){
-  taskList.innerHTML="";
-  const t = currentTasks;
-  if(!t) return;
+    /* Tasks */
+    #tasksCard{ display:none; }
+    .task{
+      border:none;
+      padding:16px;
+      display:flex;
+      align-items:stretch;
+      justify-content:space-between;
+      gap:10px;
+      user-select:none;
+      cursor:pointer;
+      background:var(--yellow2);
+      border-radius:var(--r);
+    }
+    .task.done{ background:var(--greenBg); color:var(--ids-green); }
+    .task .left{ display:flex; flex-direction:column; gap:10px; min-width:0; flex:1 1 auto; }
+    .task .title{ font-weight:900; font-size:16px; line-height:1.1; color:var(--ids-navy); }
+    .task.done .title{ color:var(--ids-green); }
 
-  if(t.needStand && t.standCode){
-    addTask("Fotím stojan", t.standCode);
-  }
-  if(t.needB1 && t.b1Code){
-    addTask("Fotím B1 plagát", t.b1Code);
-  }
-  if(t.needStatic && t.staticBase){
-    addTask("Fotím statický plagát", t.staticBase);
-  }
-}
+    .task .code{
+      font-weight:900;
+      color:var(--ids-navy);
+      background:#fff;
+      padding:12px 14px;
+      width:max-content;
+      max-width:100%;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      border-radius:var(--r);
+    }
+    .task.done .code{ color:var(--ids-green); }
 
-function addTask(label, code){
-  const div = document.createElement("div");
-  div.className="task";
-  div.innerHTML = `<div class="left"><div class="title">${label}</div><div class="code">${code}</div></div>`;
-  div.addEventListener("click", ()=>{
-    manualCode.value = code;
-    refreshCameraButton();
-    openCamera();
-  });
-  taskList.appendChild(div);
-}
+    .task .hint{
+      font-size:12.5px;
+      font-weight:800;
+      line-height:1.25;
+      color:var(--ids-navy);
+      background:rgba(255,255,255,.70);
+      padding:12px 14px;
+      white-space:pre-wrap;
+      word-break:break-word;
+      border-radius:var(--r);
+    }
+    .task.done .hint{ background:rgba(255,255,255,.55); color:var(--ids-green); }
 
-/* ====== FOTO ====== */
-function openCamera(){
-  if(!manualCode.value) return;
-  photoInput.value="";
-  photoInput.click();
-}
+    .suffixWrap{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:flex-start;
+      margin-top:8px;
+    }
+    .suffixBtn{
+      border:none;
+      background:#fff;
+      padding:12px 16px;
+      font-weight:900;
+      min-width:64px;
+      text-align:center;
+      cursor:pointer;
+      user-select:none;
+      border-radius:var(--r);
+      color:var(--ids-navy);
+    }
+    .suffixBtn.active{
+      box-shadow: 0 0 0 2px rgba(11,42,91,.10) inset;
+      background:rgba(255,255,255,.92);
+    }
 
-photoInput.addEventListener('change', ()=>{
-  const f = photoInput.files && photoInput.files[0];
-  if(!f){
-    alert("Foto sa nevrátilo.");
-    return;
-  }
-  lastBlob = f;
-  afterPhoto.style.display="block";
-  tasksCard.style.display="none";
-});
+    /* After photo */
+    #afterPhoto{ display:none; }
+    .bigSave{ width:100%; font-size:20px; padding:18px 16px; }
 
-btnRetake.addEventListener("click", ()=>{
-  lastBlob=null;
-  afterPhoto.style.display="none";
-  tasksCard.style.display="block";
-  openCamera();
-});
+    /* Express area */
+    #expressAreaWrap{ display:none; }
+    .subcard{
+      border:none;
+      padding:12px;
+      background:var(--soft);
+      border-radius:var(--r);
+    }
+    .exGrid{
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap:10px;
+      margin-top:10px;
+    }
+    .exItem{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      background:#fff;
+      padding:12px 12px;
+      user-select:none;
+      border-radius:var(--r);
+    }
+    .exItem input{ width:auto; margin:0; padding:0; }
+    .exItem label{ font-weight:900; cursor:pointer; color:var(--ids-navy); }
 
-btnBack.addEventListener("click", ()=>{
-  lastBlob=null;
-  afterPhoto.style.display="none";
-  tasksCard.style.display="block";
-});
+    /* Bottom bar */
+    .bottomBar{
+      margin-top:12px;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+    }
+    .miniIcon{
+      flex:1;
+      border:none;
+      background:#eef2fb;
+      padding:12px 10px;
+      font-weight:900;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      user-select:none;
+      color:var(--ids-navy);
+      border-radius:var(--r);
+      box-shadow: 0 8px 22px rgba(11,42,91,.06);
+    }
+    .miniIcon span{ font-size:18px; }
 
-btnSavePhoto.addEventListener("click", ()=>{
-  if(!lastBlob){ alert("Chýba fotografia."); return; }
-  if(!manualCode.value){ alert("Chýba kód."); return; }
+    #panelScan, #panelReport { display:none; margin-top:12px; }
+    video{width:100%; background:#000; border:none; border-radius:var(--r); }
 
-  const filename = safeName(manualCode.value)+".jpg";
-  downloadNow(lastBlob, filename);
+    .muted{ color:var(--muted); font-size:12px; font-weight:800; }
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border-bottom:1px solid #eee;padding:8px 6px;font-size:12.5px;vertical-align:top}
+    th{text-align:left;font-size:11px;color:#667}
 
-  lastBlob=null;
-  afterPhoto.style.display="none";
-  tasksCard.style.display="block";
-});
+    /* Mini info */
+    #miniInfoWrap{ display:none; }
+    .miniInfo{ background:#f6f7fb; padding:12px; border-radius:var(--r); }
+    .miniTitle{
+      font-size:11px;
+      font-weight:900;
+      color:rgba(11,42,91,.55);
+      margin-bottom:6px;
+      text-transform:uppercase;
+      letter-spacing:.02em;
+    }
+    .miniLine{ font-size:12.5px; color:var(--ids-navy); line-height:1.35; margin:2px 0; word-break:break-word; font-weight:700; }
+    .miniPills{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+    .miniPill{ font-size:12px; font-weight:900; background:#eaeef7; padding:6px 8px; border-radius:999px; }
 
-/* ====== SKEN ====== */
-let stream=null, scanning=false;
+    #noteCard{ display:none; margin-top:12px; }
 
-function stopStream(){
-  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-}
+    #appVersion{
+      margin-top:12px;
+      text-align:center;
+      color:rgba(11,42,91,.35);
+      font-weight:900;
+      font-size:12px;
+      letter-spacing:.05em;
+    }
 
-async function startScan(){
-  if(!('BarcodeDetector' in window)){
-    alert("Skenovanie nie je podporované.");
-    return;
-  }
-  if(scanning) return;
-  scanning=true;
-  try{
-    stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:"environment" } }, audio:false });
-    video.srcObject = stream;
-    await video.play();
-    const detector = new BarcodeDetector({ formats:["code_128","ean_13","ean_8","qr_code","code_39","upc_a","upc_e"] });
+    dialog{
+      border:none;
+      padding:16px;
+      border-radius:var(--r);
+      box-shadow: var(--shadow);
+    }
 
-    const loop = async ()=>{
-      if(!scanning) return;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video,0,0,canvas.width,canvas.height);
-      try{
-        const codes = await detector.detect(canvas);
-        if(codes.length){
-          manualCode.value = cleanCodeInput(codes[0].rawValue || "");
-          scanHint.style.display="block";
-          refreshCameraButton();
-          stopScan();
-          panelScan.style.display="none";
+    .pulse{ animation: pulse 0.75s ease-in-out 2; }
+    @keyframes pulse{
+      0%{ transform:scale(1); filter:brightness(1); }
+      50%{ transform:scale(1.03); filter:brightness(1.05); }
+      100%{ transform:scale(1); filter:brightness(1); }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- TOP OK OVERLAY -->
+  <div id="topOkBanner" class="card" style="padding:0;background:transparent;box-shadow:none">
+    <div class="okFull">
+      <div class="okIcon">✓</div>
+      <div id="okTitle" class="okTitle">Všetko hotové</div>
+      <div id="okSub" class="okSub">Môžeš pokračovať na ďalšiu plochu</div>
+
+      <button id="btnOkNext" class="btn green" style="width:100%;max-width:360px">Nové</button>
+      <button id="btnOkExpress" class="btn gray" style="width:100%;max-width:360px; display:none">Express</button>
+      <button id="btnShowDetails" class="linkBtn">Zobraziť podrobnosti</button>
+    </div>
+  </div>
+
+  <div id="mainUi">
+
+    <!-- AP -->
+    <div class="card">
+      <div class="col">
+        <input id="apInput" class="apInput" placeholder="Kód plochy" autocomplete="off" autocapitalize="characters" />
+        <button id="btnLoad" class="btn yellow">Načítať</button>
+      </div>
+    </div>
+
+    <div class="sp2"></div>
+
+    <!-- Manual / scan result + camera -->
+    <div class="card">
+      <div class="row">
+        <input id="manualCode" placeholder="Kód (sken / ručne)" autocomplete="off" autocapitalize="characters" />
+        <button id="btnCamera" class="btn gray" style="min-width:110px">Foto</button>
+      </div>
+      <div class="sp"></div>
+      <div id="scanHint" class="muted" style="display:none">Naskenované ✓ Klikni „Foto“.</div>
+    </div>
+
+    <div class="sp2"></div>
+
+    <!-- TASKS -->
+    <div id="tasksCard" class="card">
+      <div id="taskList" style="display:flex;flex-direction:column;gap:12px"></div>
+
+      <!-- EXPRESS -->
+      <div id="expressAreaWrap" class="subcard" style="margin-top:12px">
+        <div class="muted" id="expressHint" style="margin-bottom:8px"></div>
+        <div class="exGrid" id="exGrid"></div>
+        <div class="sp"></div>
+        <textarea id="expressExtra" placeholder="Poznámka k expressu (voliteľné)"></textarea>
+        <div class="sp"></div>
+        <div class="row">
+          <button id="btnExpressDelivered" class="btn" style="flex:1">Odovzdaný</button>
+          <button id="btnExpressNot" class="btn gray" style="flex:1">Neodovzdaný</button>
+        </div>
+        <div class="sp"></div>
+        <button id="btnExpressClose" class="btn gray" style="width:100%">Zavrieť</button>
+      </div>
+
+      <div class="sp2"></div>
+      <button id="btnFinish" class="btn red" style="width:100%">Ukončiť</button>
+    </div>
+
+    <!-- AFTER PHOTO -->
+    <div id="afterPhoto" class="card">
+      <button id="btnSavePhoto" class="btn yellow bigSave">Uložiť</button>
+      <div class="sp"></div>
+      <div class="row">
+        <button id="btnRetake" class="btn gray" style="flex:1">Znova</button>
+        <button id="btnBack" class="btn gray" style="flex:1">Späť</button>
+      </div>
+    </div>
+
+    <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none" />
+
+    <!-- Bottom -->
+    <div class="bottomBar">
+      <div id="btnMiniScan" class="miniIcon"><span>▣</span><div>Sken</div></div>
+      <div id="btnMiniReport" class="miniIcon"><span>≡</span><div>Report</div></div>
+    </div>
+
+    <!-- Scan panel -->
+    <div id="panelScan" class="card">
+      <video id="video" playsinline></video>
+      <canvas id="canvas" style="display:none"></canvas>
+      <div class="sp"></div>
+      <button id="btnStopScan" class="btn gray" style="width:100%">Stop</button>
+    </div>
+
+    <!-- Report -->
+    <div id="panelReport" class="card">
+      <div class="row">
+        <input id="repName" placeholder="Kto" />
+        <input id="repDate" type="date" />
+      </div>
+      <div class="sp"></div>
+      <div class="row">
+        <button id="btnToggleReport" class="btn gray" style="flex:1">Zobraziť</button>
+        <button id="btnExportCsv" class="btn gray" style="flex:1">CSV</button>
+      </div>
+      <div class="sp"></div>
+      <div class="row">
+        <button id="btnDeleteDay" class="btn gray" style="flex:1">Vymazať deň</button>
+        <button id="btnDeleteAll" class="btn red" style="flex:1">Vymazať všetko</button>
+      </div>
+      <div id="reportWrap" style="display:none"></div>
+    </div>
+
+    <!-- Note -->
+    <div id="noteCard" class="card">
+      <div class="subcard">
+        <textarea id="noteText" placeholder="Poznámka"></textarea>
+      </div>
+    </div>
+
+    <!-- Mini info -->
+    <div id="miniInfoWrap" class="card">
+      <div class="miniInfo">
+        <div class="miniTitle">Plocha</div>
+        <div id="miniAddress" class="miniLine">—</div>
+        <div id="miniPerson" class="miniLine">—</div>
+        <div id="miniPharmacy" class="miniLine">—</div>
+
+        <div class="sp"></div>
+        <div class="miniTitle">Plagáty</div>
+        <div id="miniPosters" class="miniPills"></div>
+      </div>
+    </div>
+
+    <div id="appVersion"></div>
+  </div>
+
+  <!-- Finish dialog -->
+  <dialog id="dlgFinish">
+    <div style="font-weight:900;font-size:18px;color:var(--ids-navy)">Ukončiť?</div>
+    <div id="finishText" class="muted" style="margin-top:10px"></div>
+    <div class="sp2"></div>
+    <div class="row">
+      <button id="btnFinishNo" class="btn gray" style="flex:1">Nie</button>
+      <button id="btnFinishYes" class="btn red" style="flex:1">Áno</button>
+    </div>
+  </dialog>
+
+  <!-- XLSX -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script>
+    const APP_VERSION = "V26";
+
+    /* ===== Service Worker register ===== */
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", async () => {
+        try {
+          await navigator.serviceWorker.register("./sw.js");
+        } catch (e) {
+          // ticho – SW nie je kritický na beh
         }
-      }catch(e){}
-      requestAnimationFrame(loop);
-    };
-    requestAnimationFrame(loop);
-  }catch(e){
-    stopScan();
-  }
-}
+      });
+    }
 
-function stopScan(){
-  scanning=false;
-  stopStream();
-}
+    /* ===== Columns ===== */
+    const COL_MAIN_AP = "AP";
+    const COL_STAND_FROM="AG", COL_STAND_TO="AJ";
+    const COL_B1="AK";
+    const COL_STATIC="AM";
+    const COL_EXPRESS="AL";
 
-btnMiniScan.addEventListener("click", ()=>{
-  panelScan.style.display = panelScan.style.display==="block" ? "none" : "block";
-  if(panelScan.style.display==="block") startScan();
-});
+    const COL_STAND_CODE="B";
+    const COL_B1_CODE="C";
+    const COL_STATIC_CODE="AO";
 
-btnStopScan.addEventListener("click", ()=>{
-  stopScan();
-  panelScan.style.display="none";
-});
+    const COL_CITY="F", COL_STREET="G", COL_HOUSE="H", COL_NAME="J", COL_SURNAME="K", COL_PHARMACY="L";
 
-/* ====== VSTUPY – AUTOMATICKÉ ČISTENIE ====== */
-apInput.addEventListener("input", ()=>{
-  const c = cleanCodeInput(apInput.value);
-  if(apInput.value!==c) apInput.value=c;
-});
-manualCode.addEventListener("input", ()=>{
-  const c = cleanCodeInput(manualCode.value);
-  if(manualCode.value!==c) manualCode.value=c;
-  scanHint.style.display="none";
-  refreshCameraButton();
-});
+    function colToIndex(letter){
+      let s = String(letter).toUpperCase().replace(/[^A-Z]/g,"");
+      let n = 0;
+      for (let i=0;i<s.length;i++) n = n*26 + (s.charCodeAt(i)-64);
+      return n-1;
+    }
+    function norm(v){ return String(v ?? "").trim(); }
+    function normCode(v){ return norm(v).toUpperCase(); }
+    function safeName(s){ return norm(s).replace(/[\\/:*?"<>|]+/g, "_"); }
+    function isoDate(d){
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,"0");
+      const day = String(d.getDate()).padStart(2,"0");
+      return `${y}-${m}-${day}`;
+    }
+    function fmtTime(ts){
+      return String(ts||"").split("T")[1]?.slice(0,8) || "";
+    }
 
-/* ====== REPORT (SKRÁTENÉ) ====== */
-const LOG_KEY="ids_foto_log_v26";
-function loadLog(){ try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); } catch { return []; } }
-function saveLog(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)); }
+    /* ===== Clean input: UPPER + no spaces ===== */
+    function cleanCodeInput(v){
+      let s = String(v ?? "");
+      s = s.replace(/\u00A0/g, " ");
+      s = s.replace(/\s+/g, "");
+      s = s.replace(/[‐-–—]/g, "-");
+      s = s.toUpperCase();
+      return s;
+    }
 
-function addLogEntry(ap, photoCode, posters, note, file){
-  const now = new Date();
-  const entry = {
-    ts: now.toISOString().slice(0,19),
-    day: isoDate(now),
-    who: (repName.value || "").trim(),
-    ap, photoCode, posters, note, file
-  };
-  const log = loadLog();
-  log.push(entry);
-  saveLog(log);
-}
+    function refreshCameraButton(){
+      const ok = manualCode.value.trim().length > 0;
+      btnCamera.className = ok ? "btn red" : "btn gray";
+    }
+    function downloadNow(blob, filename){
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    }
+    function rowHasAnyText(row, fromIdx, toIdx){
+      for(let i=fromIdx;i<=toIdx;i++){
+        if(norm(row[i]) !== "") return true;
+      }
+      return false;
+    }
+    function joinCells(row, fromCol, toCol){
+      const from = colToIndex(fromCol);
+      const to = colToIndex(toCol);
+      const parts=[];
+      for(let i=from;i<=to;i++){
+        const v = norm(row[i]);
+        if(v) parts.push(v);
+      }
+      return parts.join("\n");
+    }
+    function parseEXTokens(s){
+      const t = normCode(s).replace(/[,\.;\/\\]+/g, " ");
+      const parts = t.split(/\s+/).filter(Boolean);
+      const out = [];
+      for(const p of parts){
+        const m = /^EX([1-9])$/.exec(p);
+        if(m) out.push("EX"+m[1]);
+      }
+      return Array.from(new Set(out));
+    }
+    function readExpressPicked(){
+      const picked=[];
+      for(let i=1;i<=9;i++){
+        const ex="EX"+i;
+        const cb=document.getElementById("cb_"+ex);
+        if(cb && cb.checked) picked.push(ex);
+      }
+      return picked;
+    }
 
-/* ====== INIT ====== */
-repDate.value = (new Date()).toISOString().slice(0,10);
-appVersion.textContent = APP_VERSION;
-loadDbXlsx();
-refreshCameraButton();
-apInput.focus();
+    /* ===== Elements ===== */
+    const topOkBanner = document.getElementById('topOkBanner');
+    const mainUi = document.getElementById('mainUi');
+    const okTitle = document.getElementById('okTitle');
+    const okSub = document.getElementById('okSub');
+    const btnOkNext = document.getElementById('btnOkNext');
+    const btnOkExpress = document.getElementById('btnOkExpress');
+    const btnShowDetails = document.getElementById('btnShowDetails');
 
-</script>
+    const apInput = document.getElementById('apInput');
+    const btnLoad = document.getElementById('btnLoad');
+
+    const manualCode = document.getElementById('manualCode');
+    const btnCamera = document.getElementById('btnCamera');
+    const scanHint = document.getElementById('scanHint');
+
+    const tasksCard = document.getElementById('tasksCard');
+    const taskList = document.getElementById('taskList');
+
+    const expressAreaWrap = document.getElementById('expressAreaWrap');
+    const expressHint = document.getElementById('expressHint');
+    const exGrid = document.getElementById('exGrid');
+    const expressExtra = document.getElementById('expressExtra');
+    const btnExpressDelivered = document.getElementById('btnExpressDelivered');
+    const btnExpressNot = document.getElementById('btnExpressNot');
+    const btnExpressClose = document.getElementById('btnExpressClose');
+
+    const afterPhoto = document.getElementById('afterPhoto');
+    const btnSavePhoto = document.getElementById('btnSavePhoto');
+    const btnRetake = document.getElementById('btnRetake');
+    const btnBack = document.getElementById('btnBack');
+    const photoInput = document.getElementById('photoInput');
+
+    const btnMiniScan = document.getElementById('btnMiniScan');
+    const btnMiniReport = document.getElementById('btnMiniReport');
+    const panelScan = document.getElementById('panelScan');
+    const panelReport = document.getElementById('panelReport');
+
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const btnStopScan = document.getElementById('btnStopScan');
+
+    const repName = document.getElementById('repName');
+    const repDate = document.getElementById('repDate');
+    const btnToggleReport = document.getElementById('btnToggleReport');
+    const btnExportCsv = document.getElementById('btnExportCsv');
+    const reportWrap = document.getElementById('reportWrap');
+
+    const btnDeleteDay = document.getElementById('btnDeleteDay');
+    const btnDeleteAll = document.getElementById('btnDeleteAll');
+
+    const noteCard = document.getElementById('noteCard');
+    const noteText = document.getElementById('noteText');
+
+    const miniInfoWrap = document.getElementById('miniInfoWrap');
+    const miniAddress = document.getElementById('miniAddress');
+    const miniPerson = document.getElementById('miniPerson');
+    const miniPharmacy = document.getElementById('miniPharmacy');
+    const miniPosters = document.getElementById('miniPosters');
+
+    const dlgFinish = document.getElementById('dlgFinish');
+    const finishText = document.getElementById('finishText');
+    const btnFinish = document.getElementById('btnFinish');
+    const btnFinishNo = document.getElementById('btnFinishNo');
+    const btnFinishYes = document.getElementById('btnFinishYes');
+
+    /* ===== DB ===== */
+    let dbRows=null, idx=null;
+
+    const IDX_AP = colToIndex(COL_MAIN_AP);
+
+    const IDX_STAND_FROM = colToIndex(COL_STAND_FROM);
+    const IDX_STAND_TO = colToIndex(COL_STAND_TO);
+    const IDX_B1 = colToIndex(COL_B1);
+    const IDX_STATIC = colToIndex(COL_STATIC);
+    const IDX_EXPRESS = colToIndex(COL_EXPRESS);
+
+    const IDX_STAND_CODE = colToIndex(COL_STAND_CODE);
+    const IDX_B1_CODE = colToIndex(COL_B1_CODE);
+    const IDX_STATIC_CODE = colToIndex(COL_STATIC_CODE);
+
+    const IDX_CITY = colToIndex(COL_CITY);
+    const IDX_STREET = colToIndex(COL_STREET);
+    const IDX_HOUSE = colToIndex(COL_HOUSE);
+    const IDX_NAME = colToIndex(COL_NAME);
+    const IDX_SURNAME = colToIndex(COL_SURNAME);
+    const IDX_PHARMACY = colToIndex(COL_PHARMACY);
+
+    async function loadDbXlsx(){
+      try{
+        const res = await fetch("./db.xlsx", { cache:"no-cache" });
+        if(!res.ok) throw new Error("db.xlsx not found");
+        const buf = await res.arrayBuffer();
+        const wb = XLSX.read(buf, { type:"array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        dbRows = XLSX.utils.sheet_to_json(ws, { header:1, defval:"" });
+
+        idx = { byAP:new Map() };
+        for(const row of dbRows){
+          const ap = normCode(row[IDX_AP]);
+          if(ap) idx.byAP.set(ap, row);
+        }
+      }catch(e){
+        dbRows=null; idx=null;
+      }
+    }
+
+    function getPostersFromRow(row){
+      if(!row) return [];
+      const from = colToIndex("AG");
+      const to   = colToIndex("AM");
+      const set = new Set();
+      for(let i=from;i<=to;i++){
+        const v = norm(row[i]);
+        if(!v) continue;
+        v.split(/[\s,;\/]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>set.add(x));
+      }
+      return Array.from(set);
+    }
+
+    function renderMiniInfo(row){
+      if(!row){
+        miniInfoWrap.style.display="none";
+        noteCard.style.display="block";
+        return;
+      }
+
+      const city = norm(row[IDX_CITY]);
+      const street = norm(row[IDX_STREET]);
+      const house = norm(row[IDX_HOUSE]);
+      const name = norm(row[IDX_NAME]);
+      const surname = norm(row[IDX_SURNAME]);
+      const pharmacy = norm(row[IDX_PHARMACY]);
+
+      const addrParts = [city, street, house].filter(Boolean);
+      miniAddress.textContent = addrParts.length ? addrParts.join(", ") : "—";
+
+      const personParts = [name, surname].filter(Boolean);
+      miniPerson.textContent = personParts.length ? personParts.join(" ") : "—";
+
+      miniPharmacy.textContent = pharmacy ? pharmacy : "—";
+
+      const posters = getPostersFromRow(row);
+      miniPosters.innerHTML="";
+      if(posters.length){
+        posters.forEach(p=>{
+          const d=document.createElement("div");
+          d.className="miniPill";
+          d.textContent=p;
+          miniPosters.appendChild(d);
+        });
+      }else{
+        const d=document.createElement("div");
+        d.className="miniLine";
+        d.textContent="—";
+        miniPosters.appendChild(d);
+      }
+
+      miniInfoWrap.style.display="block";
+      noteCard.style.display="block";
+    }
+
+    /* ===== TASKS STATE ===== */
+    let currentTasks=null;
+    let currentPhotoCode="";
+    let lastBlob=null;
+
+    /* Express state */
+    let expressStatus="NA";
+    let expressSuggested=[];
+
+    function computeTasks(ap){
+      if(!idx) return null;
+      const apN = normCode(ap);
+      const row = idx.byAP.get(apN);
+      if(!row) return null;
+
+      const needStand = rowHasAnyText(row, IDX_STAND_FROM, IDX_STAND_TO);
+      const needB1 = norm(row[IDX_B1]) !== "";
+      const needStatic = norm(row[IDX_STATIC]) !== "";
+
+      const standCode = norm(row[IDX_STAND_CODE]);
+      const b1Code = norm(row[IDX_B1_CODE]);
+      const staticBase = norm(row[IDX_STATIC_CODE]);
+
+      const needExpress = norm(row[IDX_EXPRESS]) !== "";
+      const suggestedExpress = parseEXTokens(row[IDX_EXPRESS]);
+
+      const standHint = joinCells(row, "AG", "AJ");
+      const b1Hint = norm(row[IDX_B1]);
+
+      return {
+        ap: apN, row,
+        needStand, needB1, needStatic,
+        standCode, b1Code, staticBase,
+        needExpress, suggestedExpress,
+        standHint, b1Hint,
+        _suffix:"A"
+      };
+    }
+
+    /* ===== LOG ===== */
+    const LOG_KEY="ids_foto_log_v26";
+    const REP_KEY="ids_rep_name_v26";
+
+    function loadLog(){ try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); } catch { return []; } }
+    function saveLog(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)); }
+
+    function addLogEntry(ap, photoCode, posters, note, file){
+      const now = new Date();
+      const entry = {
+        ts: now.toISOString().slice(0,19),
+        day: isoDate(now),
+        who: (repName.value || "").trim(),
+        ap: ap || "",
+        photoCode: photoCode || "",
+        posters: posters || [],
+        note: note || "",
+        file: file || ""
+      };
+      const log = loadLog();
+      log.push(entry);
+      saveLog(log);
+    }
+
+    function isPhotoDoneToday(ap, type, codeOrBase){
+      const day = repDate.value || isoDate(new Date());
+      const log = loadLog().filter(x => x.day === day && String(x.ap||"") === ap);
+
+      if(type==="exact"){
+        return log.some(x => normCode(x.photoCode) === normCode(codeOrBase));
+      }
+      if(type==="base"){
+        const base = normCode(codeOrBase);
+        return log.some(x => normCode((x.photoCode||"").replace(/[A-Z]$/,"")) === base);
+      }
+      return false;
+    }
+
+    /* ===== OK banner logic ===== */
+    function showOkBanner(mode){
+      if(!currentTasks) return;
+
+      const needExpress = !!currentTasks.needExpress;
+      const expressDone = (expressStatus !== "NA");
+
+      if(mode === "ALL"){
+        okTitle.textContent = "Všetko hotové";
+        okSub.textContent = "Môžeš pokračovať na ďalšiu plochu";
+        btnOkExpress.style.display = "none";
+      }else{
+        okTitle.textContent = "Všetko okrem expressov hotové";
+        okSub.textContent = "Ak chceš, potvrď ešte express (voliteľné)";
+        btnOkExpress.style.display = needExpress && !expressDone ? "block" : "none";
+      }
+
+      mainUi.style.display = "none";
+      topOkBanner.style.display = "block";
+      window.scrollTo({ top:0, behavior:"smooth" });
+    }
+
+    function hideOkBannerShowDetails(){
+      topOkBanner.style.display = "none";
+      mainUi.style.display = "block";
+      window.scrollTo({ top:0, behavior:"smooth" });
+    }
+
+    function photosDone(){
+      const t=currentTasks;
+      if(!t) return false;
+
+      if(t.needStand && t.standCode && !isPhotoDoneToday(t.ap,"exact",t.standCode)) return false;
+      if(t.needB1 && t.b1Code && !isPhotoDoneToday(t.ap,"exact",t.b1Code)) return false;
+      if(t.needStatic && t.staticBase && !isPhotoDoneToday(t.ap,"base",t.staticBase)) return false;
+
+      return true;
+    }
+
+    function checkAutoOk(){
+      if(!currentTasks) return;
+      if(!photosDone()) return;
+
+      if(currentTasks.needExpress && expressStatus === "NA"){
+        showOkBanner("PHOTOS_ONLY");
+      }else{
+        showOkBanner("ALL");
+      }
+    }
+
+    btnOkNext.addEventListener("click", ()=> resetToNew());
+    btnShowDetails.addEventListener("click", ()=> hideOkBannerShowDetails());
+    btnOkExpress.addEventListener("click", ()=>{
+      hideOkBannerShowDetails();
+      openExpressArea();
+      window.scrollTo({ top: document.body.scrollHeight, behavior:"smooth" });
+    });
+
+    /* ===== RENDER TASKS ===== */
+    function makeTaskRow({label, code, hint, done, onClick}){
+      const div = document.createElement("div");
+      div.className = "task" + (done ? " done" : "");
+
+      const left = document.createElement("div");
+      left.className="left";
+
+      const title = document.createElement("div");
+      title.className="title";
+      title.textContent=label;
+
+      const codeEl = document.createElement("div");
+      codeEl.className="code";
+      codeEl.textContent=code || "—";
+
+      left.appendChild(title);
+      left.appendChild(codeEl);
+
+      if(hint && hint.trim()){
+        const hintEl = document.createElement("div");
+        hintEl.className="hint";
+        hintEl.textContent = hint.trim();
+        left.appendChild(hintEl);
+      }
+
+      div.appendChild(left);
+      div.addEventListener("click", onClick);
+      return div;
+    }
+
+    function makeStaticRow(t, done){
+      const div = document.createElement("div");
+      div.className = "task" + (done ? " done" : "");
+
+      const left = document.createElement("div");
+      left.className="left";
+
+      const title = document.createElement("div");
+      title.className="title";
+      title.textContent="Fotím statický plagát";
+
+      const codeEl = document.createElement("div");
+      codeEl.className="code";
+      codeEl.textContent=t.staticBase || "—";
+
+      const suffixWrap = document.createElement("div");
+      suffixWrap.className="suffixWrap";
+
+      ["A","B","C"].forEach(s=>{
+        const b=document.createElement("div");
+        b.className="suffixBtn" + (t._suffix===s ? " active":"");
+        b.textContent=s;
+        b.addEventListener("click",(ev)=>{
+          ev.stopPropagation();
+          t._suffix = s;
+          renderTasks();
+
+          const base=t.staticBase||"";
+          if(!base) return;
+          manualCode.value = cleanCodeInput(base + s);
+          scanHint.style.display="none";
+          refreshCameraButton();
+          currentPhotoCode = manualCode.value.trim();
+          openCamera();
+        });
+        suffixWrap.appendChild(b);
+      });
+
+      left.appendChild(title);
+      left.appendChild(codeEl);
+      left.appendChild(suffixWrap);
+      div.appendChild(left);
+
+      div.addEventListener("click", ()=>{
+        const base=t.staticBase||"";
+        if(!base) return;
+        manualCode.value=cleanCodeInput(base);
+        scanHint.style.display="none";
+        refreshCameraButton();
+        currentPhotoCode=base;
+        openCamera();
+      });
+
+      return div;
+    }
+
+    function renderExpressUI(){
+      exGrid.innerHTML = "";
+      const suggested = expressSuggested || [];
+      expressHint.textContent = suggested.length ? ("Návrh: " + suggested.join(" ")) : "Bez návrhu";
+
+      const all = ["EX1","EX2","EX3","EX4","EX5","EX6","EX7","EX8","EX9"];
+      all.forEach(ex=>{
+        const id = "cb_" + ex;
+        const wrap = document.createElement("div");
+        wrap.className = "exItem";
+
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.id = id;
+        cb.checked = suggested.includes(ex);
+
+        const lab = document.createElement("label");
+        lab.htmlFor = id;
+        lab.textContent = ex;
+
+        wrap.appendChild(cb);
+        wrap.appendChild(lab);
+        exGrid.appendChild(wrap);
+      });
+    }
+
+    function openExpressArea(){
+      if(!currentTasks || !currentTasks.needExpress) return;
+      expressAreaWrap.style.display = "block";
+      renderExpressUI();
+    }
+
+    function renderTasks(){
+      const t = currentTasks;
+      taskList.innerHTML = "";
+      if(!t) return;
+
+      if(t.needStand && t.standCode){
+        const done = isPhotoDoneToday(t.ap,"exact",t.standCode);
+        taskList.appendChild(makeTaskRow({
+          label:"Fotím stojan",
+          code:t.standCode,
+          hint:t.standHint,
+          done,
+          onClick: ()=>{
+            manualCode.value=cleanCodeInput(t.standCode);
+            scanHint.style.display="none";
+            refreshCameraButton();
+            currentPhotoCode=manualCode.value;
+            openCamera();
+          }
+        }));
+      }
+
+      if(t.needB1 && t.b1Code){
+        const done = isPhotoDoneToday(t.ap,"exact",t.b1Code);
+        taskList.appendChild(makeTaskRow({
+          label:"Fotím B1 plagát",
+          code:t.b1Code,
+          hint:t.b1Hint,
+          done,
+          onClick: ()=>{
+            manualCode.value=cleanCodeInput(t.b1Code);
+            scanHint.style.display="none";
+            refreshCameraButton();
+            currentPhotoCode=manualCode.value;
+            openCamera();
+          }
+        }));
+      }
+
+      if(t.needStatic && t.staticBase){
+        const done = isPhotoDoneToday(t.ap,"base",t.staticBase);
+        taskList.appendChild(makeStaticRow(t, done));
+      }
+
+      if(t.needExpress){
+        const done = (expressStatus !== "NA");
+        taskList.appendChild(makeTaskRow({
+          label:"Express",
+          code:(t.suggestedExpress||[]).join(" ") || "—",
+          hint:"Klikni pre potvrdenie (voliteľné)",
+          done,
+          onClick: ()=>{
+            openExpressArea();
+            window.scrollTo({ top: document.body.scrollHeight, behavior:"smooth" });
+          }
+        }));
+      }
+
+      checkAutoOk();
+    }
+
+    /* ===== Finish dialog ===== */
+    function missingListForPhotosOnly(){
+      const t=currentTasks;
+      const miss=[];
+      if(!t) return miss;
+      if(t.needStand && t.standCode && !isPhotoDoneToday(t.ap,"exact",t.standCode)) miss.push("stojan");
+      if(t.needB1 && t.b1Code && !isPhotoDoneToday(t.ap,"exact",t.b1Code)) miss.push("B1");
+      if(t.needStatic && t.staticBase && !isPhotoDoneToday(t.ap,"base",t.staticBase)) miss.push("statický");
+      return miss;
+    }
+
+    /* ===== PHOTO FLOW ===== */
+    function openCamera(){
+      if(!manualCode.value.trim()) return;
+      photoInput.value="";
+      photoInput.click();
+    }
+
+    photoInput.addEventListener('change', ()=>{
+      const f = photoInput.files && photoInput.files[0];
+      if(!f){
+        lastBlob = null;
+        afterPhoto.style.display="none";
+        tasksCard.style.display = currentTasks ? "block" : "none";
+        alert("Foto sa nevrátilo (Android občas). Skús ešte raz.");
+        return;
+      }
+      lastBlob = f;
+      afterPhoto.style.display="block";
+      tasksCard.style.display="none";
+    });
+
+    btnRetake.addEventListener('click', ()=>{
+      lastBlob=null;
+      afterPhoto.style.display="none";
+      tasksCard.style.display = currentTasks ? "block" : "none";
+      openCamera();
+    });
+
+    btnBack.addEventListener('click', ()=>{
+      lastBlob=null;
+      afterPhoto.style.display="none";
+      tasksCard.style.display = currentTasks ? "block" : "none";
+    });
+
+    btnSavePhoto.addEventListener('click', ()=>{
+      if(!lastBlob){ alert("Chýba fotografia."); return; }
+
+      const code = cleanCodeInput(manualCode.value);
+      manualCode.value = code;
+
+      if(!code){ alert("Chýba kód."); return; }
+
+      currentPhotoCode = code;
+      const filename = safeName(currentPhotoCode) + ".jpg";
+      downloadNow(lastBlob, filename);
+
+      const ap = currentTasks?.ap || normCode(apInput.value);
+
+      let posters = [];
+      let row = null;
+      if(idx && ap && idx.byAP.has(ap)){
+        row = idx.byAP.get(ap);
+        posters = getPostersFromRow(row);
+        renderMiniInfo(row);
+      }else{
+        renderMiniInfo(null);
+      }
+
+      const note = norm(noteText.value);
+      addLogEntry(ap, currentPhotoCode, posters, note, filename);
+
+      lastBlob=null;
+      afterPhoto.style.display="none";
+      tasksCard.style.display = currentTasks ? "block" : "none";
+
+      if(currentTasks){
+        renderTasks();
+      }
+    });
+
+    /* ===== EXPRESS ===== */
+    btnExpressClose.addEventListener("click", ()=> expressAreaWrap.style.display="none");
+
+    function logExpress(statusText){
+      if(!currentTasks) return;
+      const ap = currentTasks.ap;
+      const posters = currentTasks.row ? getPostersFromRow(currentTasks.row) : [];
+      const baseNote = norm(noteText.value);
+      const extra = norm(expressExtra.value);
+
+      let s = statusText;
+      if(extra) s += " | " + extra;
+
+      const finalNote = [baseNote, s].filter(Boolean).join(" | ");
+      addLogEntry(ap, "", posters, finalNote, "");
+    }
+
+    btnExpressDelivered.addEventListener("click", ()=>{
+      expressStatus = "DELIVERED";
+      const pickedNow = readExpressPicked(); // vždy aktuálne!
+      const s = "EXPRESS: " + (pickedNow.join(" ") || "ODOVZDANÝ");
+      logExpress(s);
+      expressAreaWrap.style.display="none";
+      renderTasks();
+    });
+
+    btnExpressNot.addEventListener("click", ()=>{
+      expressStatus = "NOT";
+      logExpress("EXPRESS: NEODOVZDANÝ");
+      expressAreaWrap.style.display="none";
+      renderTasks();
+    });
+
+    /* ===== Finish ===== */
+    btnFinish.addEventListener("click", ()=>{
+      if(!currentTasks) return;
+      const miss = missingListForPhotosOnly();
+      if(miss.length===0){
+        if(currentTasks.needExpress && expressStatus==="NA"){ showOkBanner("PHOTOS_ONLY"); return; }
+        showOkBanner("ALL");
+        return;
+      }
+      finishText.textContent = "Chýba: " + miss.join(", ");
+      dlgFinish.showModal();
+    });
+
+    btnFinishNo.addEventListener("click", ()=> dlgFinish.close());
+    btnFinishYes.addEventListener("click", ()=>{
+      dlgFinish.close();
+      resetToNew();
+    });
+
+    function resetToNew(){
+      topOkBanner.style.display="none";
+      mainUi.style.display="block";
+
+      tasksCard.style.display="none";
+      afterPhoto.style.display="none";
+      taskList.innerHTML="";
+      currentTasks=null;
+      currentPhotoCode="";
+      lastBlob=null;
+
+      expressStatus="NA";
+      expressSuggested=[];
+      expressExtra.value="";
+      expressAreaWrap.style.display="none";
+
+      noteText.value="";
+      scanHint.style.display="none";
+      manualCode.value="";
+      refreshCameraButton();
+
+      miniInfoWrap.style.display="none";
+      noteCard.style.display="none";
+
+      apInput.value="";
+      apInput.focus();
+      window.scrollTo({ top:0, behavior:"smooth" });
+    }
+
+    /* ===== LOAD AP ===== */
+    btnLoad.addEventListener("click", ()=>{
+      const ap = cleanCodeInput(apInput.value.trim());
+      apInput.value = ap;
+
+      if(!ap || !idx) {
+        // ak DB ešte nie je načítaná, aspoň nech UI nespadne
+        return;
+      }
+
+      const t = computeTasks(ap);
+      if(!t){
+        tasksCard.style.display="none";
+        renderMiniInfo(null);
+        currentTasks=null;
+        return;
+      }
+
+      currentTasks = t;
+      expressStatus="NA";
+      expressSuggested = t.suggestedExpress || [];
+      expressExtra.value="";
+      expressAreaWrap.style.display="none";
+
+      renderMiniInfo(t.row);
+
+      tasksCard.style.display="block";
+      renderTasks();
+
+      manualCode.focus();
+      window.scrollTo({ top:0, behavior:"smooth" });
+    });
+
+    apInput.addEventListener("keydown", (e)=>{ if(e.key==="Enter") btnLoad.click(); });
+
+    /* ===== manual code ===== */
+    manualCode.addEventListener("input", ()=>{
+      const cleaned = cleanCodeInput(manualCode.value);
+      if(manualCode.value !== cleaned) manualCode.value = cleaned;
+
+      scanHint.style.display="none";
+      refreshCameraButton();
+    });
+
+    apInput.addEventListener("input", ()=>{
+      const cleaned = cleanCodeInput(apInput.value);
+      if(apInput.value !== cleaned) apInput.value = cleaned;
+    });
+
+    btnCamera.addEventListener("click", ()=>{
+      const c = cleanCodeInput(manualCode.value.trim());
+      manualCode.value = c;
+      if(!c) return;
+      currentPhotoCode=c;
+      openCamera();
+    });
+
+    refreshCameraButton();
+
+    /* ===== REPORT UI ===== */
+    function renderReport(){
+      const day = repDate.value || isoDate(new Date());
+      const log = loadLog().filter(x => x.day === day);
+      if(log.length === 0){
+        reportWrap.innerHTML = "<div class='muted' style='margin-top:10px'>—</div>";
+        return;
+      }
+      const rows = log.slice().sort((a,b)=> (a.ts||"").localeCompare(b.ts||""));
+      let html = `<table>
+        <thead><tr>
+          <th>Čas</th><th>Kto</th><th>AP</th><th>Fotil</th><th>Plagáty</th><th>Poznámka</th><th>Súbor</th>
+        </tr></thead><tbody>`;
+      for(const r of rows){
+        html += `<tr>
+          <td>${fmtTime(r.ts)}</td>
+          <td>${r.who||""}</td>
+          <td><b>${r.ap||""}</b></td>
+          <td>${r.photoCode||""}</td>
+          <td>${(r.posters&&r.posters.length)?r.posters.join(", "):"—"}</td>
+          <td>${r.note||""}</td>
+          <td>${r.file||""}</td>
+        </tr>`;
+      }
+      html += `</tbody></table>`;
+      reportWrap.innerHTML = html;
+    }
+
+    function escapeCsv(s){
+      const v = String(s ?? "");
+      if (/[",\n;]/.test(v)) return `"${v.replaceAll('"','""')}"`;
+      return v;
+    }
+    function exportCsv(){
+      const day = repDate.value || isoDate(new Date());
+      const log = loadLog().filter(x => x.day === day).sort((a,b)=> (a.ts||"").localeCompare(b.ts||""));
+      if(log.length === 0){ alert("—"); return; }
+      const header = ["day","time","who","ap","photoCode","posters","note","file"];
+      const lines = [header.join(";")];
+      for(const r of log){
+        lines.push([
+          escapeCsv(r.day),
+          escapeCsv(fmtTime(r.ts)),
+          escapeCsv(r.who),
+          escapeCsv(r.ap),
+          escapeCsv(r.photoCode),
+          escapeCsv((r.posters && r.posters.length) ? r.posters.join(", ") : ""),
+          escapeCsv(r.note),
+          escapeCsv(r.file)
+        ].join(";"));
+      }
+      const csv = lines.join("\n");
+      const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
+      const filename = `report_${day}_${safeName(repName.value || "repre")}.csv`;
+      downloadNow(blob, filename);
+    }
+
+    function deleteLogsForDay(day){
+      const all = loadLog();
+      saveLog(all.filter(x => x.day !== day));
+    }
+    function deleteLogsAll(){ saveLog([]); }
+
+    btnToggleReport.addEventListener("click", ()=>{
+      const vis = reportWrap.style.display==="block";
+      if(vis){
+        reportWrap.style.display="none";
+        btnToggleReport.textContent="Zobraziť";
+      }else{
+        reportWrap.style.display="block";
+        btnToggleReport.textContent="Skryť";
+        renderReport();
+      }
+    });
+    btnExportCsv.addEventListener("click", exportCsv);
+
+    btnDeleteDay.addEventListener("click", ()=>{
+      const day = repDate.value || isoDate(new Date());
+      if(!confirm(`Vymazať report len pre deň ${day}?`)) return;
+      deleteLogsForDay(day);
+      if(reportWrap.style.display === "block") renderReport();
+    });
+    btnDeleteAll.addEventListener("click", ()=>{
+      if(!confirm("Vymazať CELÝ report (všetky dni)?")) return;
+      if(!confirm("Naozaj? Toto sa nedá vrátiť späť.")) return;
+      deleteLogsAll();
+      if(reportWrap.style.display === "block") renderReport();
+    });
+
+    /* ===== SCAN ===== */
+    let stream=null, scanning=false;
+    function stopStream(){ if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } }
+    function stopScan(){ scanning=false; stopStream(); }
+
+    async function startScan(){
+      if(!('BarcodeDetector' in window)) {
+        alert("Skenovanie nie je podporované v tomto prehliadači.");
+        return;
+      }
+      if(scanning) return;
+
+      scanning=true;
+      try{
+        stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:"environment" } }, audio:false });
+        video.srcObject = stream;
+        await video.play();
+
+        const detector = new BarcodeDetector({ formats:["code_128","ean_13","ean_8","qr_code","code_39","upc_a","upc_e"] });
+
+        const loop = async ()=>{
+          if(!scanning) return;
+
+          const w = video.videoWidth || 640;
+          const h = video.videoHeight || 480;
+          canvas.width = w; canvas.height = h;
+          ctx.drawImage(video, 0, 0, w, h);
+
+          try{
+            const codes = await detector.detect(canvas);
+            if(codes && codes.length){
+              const raw = (codes[0].rawValue || "").trim();
+              if(raw){
+                manualCode.value = cleanCodeInput(raw);
+                scanHint.style.display = "block";
+                refreshCameraButton();
+
+                stopScan();
+                panelScan.style.display="none";
+
+                btnCamera.classList.add("pulse");
+                setTimeout(()=>btnCamera.classList.remove("pulse"), 1200);
+
+                window.scrollTo({ top:0, behavior:"smooth" });
+                return;
+              }
+            }
+          }catch(e){}
+          requestAnimationFrame(loop);
+        };
+        requestAnimationFrame(loop);
+      }catch(e){
+        stopScan();
+      }
+    }
+
+    btnMiniScan.addEventListener("click", ()=>{
+      panelScan.style.display = (panelScan.style.display==="block") ? "none" : "block";
+      if(panelScan.style.display==="block") startScan();
+    });
+    btnStopScan.addEventListener("click", ()=>{
+      stopScan();
+      panelScan.style.display="none";
+    });
+    btnMiniReport.addEventListener("click", ()=>{
+      panelReport.style.display = (panelReport.style.display==="block") ? "none" : "block";
+    });
+
+    /* ===== Init ===== */
+    repDate.value = (new Date()).toISOString().slice(0,10);
+    repName.value = localStorage.getItem(REP_KEY) || "";
+    repName.addEventListener('change', ()=> localStorage.setItem(REP_KEY, repName.value.trim()));
+
+    document.getElementById("appVersion").textContent = APP_VERSION;
+
+    loadDbXlsx();
+    apInput.focus();
+  </script>
+</body>
+</html>
