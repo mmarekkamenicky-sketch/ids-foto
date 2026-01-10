@@ -50,6 +50,9 @@
       color:var(--text);
       margin:14px;
       max-width:720px;
+
+      /* proti "pull-to-refresh" pocitu (nie 100%, ale pomáha) */
+      overscroll-behavior-y: contain;
     }
 
     .card{
@@ -135,6 +138,7 @@
       letter-spacing:.01em;
     }
 
+    /* TOP OK overlay */
     #topOkBanner{ display:none; }
     .okFull{
       background:linear-gradient(0deg, rgba(255,212,0,.16), rgba(255,212,0,.16)), #fff;
@@ -162,7 +166,10 @@
     .okTitle{ font-weight:900; font-size:24px; line-height:1.15; }
     .okSub{ color:rgba(11,42,91,.75); font-weight:800; font-size:13px; }
 
+    /* TASKS */
     #tasksCard{ display:none; }
+
+    /* Výrazné červené úlohy */
     .task{
       border:none;
       padding:16px;
@@ -172,18 +179,23 @@
       gap:10px;
       user-select:none;
       cursor:pointer;
-      background:var(--yellow2);
+
+      background: var(--ids-cycla);
+      color:#fff;
       border-radius:var(--r);
     }
-    .task.done{ background:var(--greenBg); color:var(--ids-green); }
+    .task.done{
+      background:var(--greenBg);
+      color:var(--ids-green);
+    }
     .task .left{ display:flex; flex-direction:column; gap:10px; min-width:0; flex:1 1 auto; }
-    .task .title{ font-weight:900; font-size:16px; line-height:1.1; color:var(--ids-navy); }
+    .task .title{ font-weight:900; font-size:16px; line-height:1.1; color:#fff; }
     .task.done .title{ color:var(--ids-green); }
 
     .task .code{
       font-weight:900;
-      color:var(--ids-navy);
-      background:#fff;
+      color:#fff;
+      background:rgba(255,255,255,.18);
       padding:12px 14px;
       width:max-content;
       max-width:100%;
@@ -192,49 +204,32 @@
       white-space:nowrap;
       border-radius:var(--r);
     }
-    .task.done .code{ color:var(--ids-green); }
+    .task.done .code{
+      color:var(--ids-green);
+      background:rgba(255,255,255,.70);
+    }
 
     .task .hint{
       font-size:12.5px;
       font-weight:800;
       line-height:1.25;
-      color:var(--ids-navy);
-      background:rgba(255,255,255,.70);
+      color:#fff;
+      background:rgba(255,255,255,.14);
       padding:12px 14px;
       white-space:pre-wrap;
       word-break:break-word;
       border-radius:var(--r);
     }
-    .task.done .hint{ background:rgba(255,255,255,.55); color:var(--ids-green); }
-
-    .suffixWrap{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-      justify-content:flex-start;
-      margin-top:8px;
-    }
-    .suffixBtn{
-      border:none;
-      background:#fff;
-      padding:12px 16px;
-      font-weight:900;
-      min-width:64px;
-      text-align:center;
-      cursor:pointer;
-      user-select:none;
-      border-radius:var(--r);
-      color:var(--ids-navy);
-    }
-    .suffixBtn.active{
-      box-shadow: 0 0 0 2px rgba(11,42,91,.10) inset;
-      background:rgba(255,255,255,.92);
+    .task.done .hint{
+      background:rgba(255,255,255,.55);
+      color:var(--ids-green);
     }
 
+    /* After photo */
     #afterPhoto{ display:none; }
     .bigSave{ width:100%; font-size:20px; padding:18px 16px; }
 
+    /* Express area */
     #expressAreaWrap{ display:none; }
     .subcard{
       border:none;
@@ -260,31 +255,7 @@
     .exItem input{ width:auto; margin:0; padding:0; }
     .exItem label{ font-weight:900; cursor:pointer; color:var(--ids-navy); }
 
-    .bottomBar{
-      margin-top:12px;
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-      align-items:center;
-    }
-    .miniIcon{
-      flex:1;
-      border:none;
-      background:#eef2fb;
-      padding:12px 10px;
-      font-weight:900;
-      display:flex;
-      gap:10px;
-      align-items:center;
-      justify-content:center;
-      cursor:pointer;
-      user-select:none;
-      color:var(--ids-navy);
-      border-radius:var(--r);
-      box-shadow: 0 8px 22px rgba(11,42,91,.06);
-    }
-    .miniIcon span{ font-size:18px; }
-
+    /* Scan panel */
     #panelScan, #panelReport { display:none; margin-top:12px; }
     video{width:100%; background:#000; border:none; border-radius:var(--r); }
 
@@ -293,6 +264,7 @@
     th,td{border-bottom:1px solid #eee;padding:8px 6px;font-size:12.5px;vertical-align:top}
     th{text-align:left;font-size:11px;color:#667}
 
+    /* Mini info */
     #miniInfoWrap{ display:none; }
     .miniInfo{ background:#f6f7fb; padding:12px; border-radius:var(--r); }
     .miniTitle{
@@ -332,7 +304,7 @@
       100%{ transform:scale(1); filter:brightness(1); }
     }
 
-    /* ===== TOAST (tiché hlášky) ===== */
+    /* Toast (tiché hlášky) */
     #toast{
       position: fixed;
       left: 14px;
@@ -348,6 +320,29 @@
       border-radius: var(--r);
       box-shadow: var(--shadow);
     }
+
+    /* Nenápadný report link úplne dole */
+    #tinyReportWrap{
+      display:none;
+      margin-top:14px;
+      text-align:center;
+    }
+    .tinyLink{
+      border:0;
+      background:transparent;
+      color:rgba(11,42,91,.35);
+      font-weight:900;
+      font-size:12px;
+      letter-spacing:.03em;
+      text-decoration:underline;
+      cursor:pointer;
+      padding:6px 10px;
+      border-radius:999px;
+    }
+
+    /* Skrytie horných vecí počas "session" */
+    #apWrap{ display:block; }
+    #topToolsWrap{ display:block; }
   </style>
 </head>
 
@@ -368,8 +363,8 @@
 
   <div id="mainUi">
 
-    <!-- AP -->
-    <div class="card">
+    <!-- AP (toto sa po načítaní schová) -->
+    <div id="apWrap" class="card">
       <div class="col">
         <input id="apInput" class="apInput" placeholder="Kód plochy" autocomplete="off" autocapitalize="characters" />
         <button id="btnLoad" class="btn yellow">Načítať</button>
@@ -378,11 +373,16 @@
 
     <div class="sp2"></div>
 
-    <!-- Manual / scan result + camera -->
-    <div class="card">
+    <!-- Manual / scan + camera (ostáva) -->
+    <div id="topToolsWrap" class="card">
       <div class="row">
         <input id="manualCode" placeholder="Číslo fotky (napr. 5587)" autocomplete="off" inputmode="numeric" />
         <button id="btnCamera" class="btn gray" style="min-width:110px">Foto</button>
+      </div>
+      <div class="sp"></div>
+      <div class="row">
+        <button id="btnScanToggle" class="btn gray" style="flex:1">Sken</button>
+        <button id="btnStopScan" class="btn gray" style="flex:1; display:none">Stop</button>
       </div>
       <div class="sp"></div>
       <div id="scanHint" class="muted" style="display:none">Naskenované ✓ Klikni „Foto“.</div>
@@ -390,7 +390,15 @@
 
     <div class="sp2"></div>
 
-    <!-- TASKS -->
+    <!-- Scan panel -->
+    <div id="panelScan" class="card">
+      <video id="video" playsinline></video>
+      <canvas id="canvas" style="display:none"></canvas>
+    </div>
+
+    <div class="sp2"></div>
+
+    <!-- TASKS (výrazné červené) -->
     <div id="tasksCard" class="card">
       <div id="taskList" style="display:flex;flex-direction:column;gap:12px"></div>
 
@@ -425,39 +433,6 @@
 
     <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none" />
 
-    <!-- Bottom -->
-    <div class="bottomBar">
-      <div id="btnMiniScan" class="miniIcon"><span>▣</span><div>Sken</div></div>
-      <div id="btnMiniReport" class="miniIcon"><span>≡</span><div>Report</div></div>
-    </div>
-
-    <!-- Scan panel -->
-    <div id="panelScan" class="card">
-      <video id="video" playsinline></video>
-      <canvas id="canvas" style="display:none"></canvas>
-      <div class="sp"></div>
-      <button id="btnStopScan" class="btn gray" style="width:100%">Stop</button>
-    </div>
-
-    <!-- Report -->
-    <div id="panelReport" class="card">
-      <div class="row">
-        <input id="repName" placeholder="Kto" />
-        <input id="repDate" type="date" />
-      </div>
-      <div class="sp"></div>
-      <div class="row">
-        <button id="btnToggleReport" class="btn gray" style="flex:1">Zobraziť</button>
-        <button id="btnExportCsv" class="btn gray" style="flex:1">CSV</button>
-      </div>
-      <div class="sp"></div>
-      <div class="row">
-        <button id="btnDeleteDay" class="btn gray" style="flex:1">Vymazať deň</button>
-        <button id="btnDeleteAll" class="btn red" style="flex:1">Vymazať všetko</button>
-      </div>
-      <div id="reportWrap" style="display:none"></div>
-    </div>
-
     <!-- Note -->
     <div id="noteCard" class="card">
       <div class="subcard">
@@ -477,6 +452,29 @@
         <div class="miniTitle">Plagáty</div>
         <div id="miniPosters" class="miniPills"></div>
       </div>
+    </div>
+
+    <!-- Nenápadný report úplne dole -->
+    <div id="tinyReportWrap">
+      <button id="btnTinyReport" class="tinyLink">Report</button>
+    </div>
+
+    <div id="panelReport" class="card">
+      <div class="row">
+        <input id="repName" placeholder="Kto" />
+        <input id="repDate" type="date" />
+      </div>
+      <div class="sp"></div>
+      <div class="row">
+        <button id="btnToggleReport" class="btn gray" style="flex:1">Zobraziť</button>
+        <button id="btnExportCsv" class="btn gray" style="flex:1">CSV</button>
+      </div>
+      <div class="sp"></div>
+      <div class="row">
+        <button id="btnDeleteDay" class="btn gray" style="flex:1">Vymazať deň</button>
+        <button id="btnDeleteAll" class="btn red" style="flex:1">Vymazať všetko</button>
+      </div>
+      <div id="reportWrap" style="display:none"></div>
     </div>
 
     <div id="appVersion"></div>
@@ -522,7 +520,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <script>
-    const APP_VERSION = "V26-TICHY";
+    const APP_VERSION = "V27-TICHY-UX";
 
     /* ===== Service Worker register ===== */
     if ("serviceWorker" in navigator) {
@@ -649,12 +647,18 @@
     const btnOkExpress = document.getElementById('btnOkExpress');
     const btnShowDetails = document.getElementById('btnShowDetails');
 
+    const apWrap = document.getElementById('apWrap');
+    const topToolsWrap = document.getElementById('topToolsWrap');
     const apInput = document.getElementById('apInput');
     const btnLoad = document.getElementById('btnLoad');
 
     const manualCode = document.getElementById('manualCode');
     const btnCamera = document.getElementById('btnCamera');
     const scanHint = document.getElementById('scanHint');
+
+    const btnScanToggle = document.getElementById('btnScanToggle');
+    const btnStopScan = document.getElementById('btnStopScan');
+    const panelScan = document.getElementById('panelScan');
 
     const tasksCard = document.getElementById('tasksCard');
     const taskList = document.getElementById('taskList');
@@ -673,15 +677,9 @@
     const btnBack = document.getElementById('btnBack');
     const photoInput = document.getElementById('photoInput');
 
-    const btnMiniScan = document.getElementById('btnMiniScan');
-    const btnMiniReport = document.getElementById('btnMiniReport');
-    const panelScan = document.getElementById('panelScan');
-    const panelReport = document.getElementById('panelReport');
-
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    const btnStopScan = document.getElementById('btnStopScan');
 
     const repName = document.getElementById('repName');
     const repDate = document.getElementById('repDate');
@@ -715,6 +713,10 @@
     const dlgDeleteAll = document.getElementById('dlgDeleteAll');
     const btnDelAllNo = document.getElementById('btnDelAllNo');
     const btnDelAllYes = document.getElementById('btnDelAllYes');
+
+    const tinyReportWrap = document.getElementById('tinyReportWrap');
+    const btnTinyReport = document.getElementById('btnTinyReport');
+    const panelReport = document.getElementById('panelReport');
 
     /* ===== DB ===== */
     let dbRows=null, idx=null;
@@ -846,14 +848,13 @@
         needStand, needB1, needStatic,
         standCode, b1Code, staticBase,
         needExpress, suggestedExpress,
-        standHint, b1Hint,
-        _suffix:"A"
+        standHint, b1Hint
       };
     }
 
     /* ===== LOG ===== */
-    const LOG_KEY="ids_foto_log_v26_tichy";
-    const REP_KEY="ids_rep_name_v26";
+    const LOG_KEY="ids_foto_log_v27_tichy";
+    const REP_KEY="ids_rep_name_v27";
 
     function loadLog(){ try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); } catch { return []; } }
     function saveLog(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)); }
@@ -889,6 +890,58 @@
       return false;
     }
 
+    /* ===== Session UI + refresh lock ===== */
+    let sessionActive = false;
+
+    function photosDone(){
+      const t=currentTasks;
+      if(!t) return false;
+
+      // Pozor: v tichom režime fotokód je číslo → tieto "DB kódy" nemusia byť čísla.
+      // Preto sa tu nesnažíme automaticky vyhodnocovať splnenie podľa DB kódov,
+      // ale podľa toho, či reprezentant uložil fotky pre jednotlivé tasky (klikom na task).
+      // Prakticky: vyhodnocujeme podľa "done" stavov pri renderTasks (cez log),
+      // ale keď DB kód nie je číslo, necháme task ako "nedokončený", kým reprezentant neurobí fotku.
+      if(t.needStand && t.standCode && !isPhotoDoneToday(t.ap,"exact",t.standCode)) return false;
+      if(t.needB1 && t.b1Code && !isPhotoDoneToday(t.ap,"exact",t.b1Code)) return false;
+      if(t.needStatic && t.staticBase && !isPhotoDoneToday(t.ap,"base",t.staticBase)) return false;
+
+      return true;
+    }
+
+    function isEverythingDone(){
+      if(!currentTasks) return false;
+      const pDone = photosDone();
+      if(!pDone) return false;
+      if(currentTasks.needExpress && expressStatus==="NA") return false;
+      return true;
+    }
+
+    function setSessionActive(on){
+      sessionActive = !!on;
+
+      // hide AP/search area when active
+      apWrap.style.display = on ? "none" : "block";
+
+      // report tiny link only when active (at the end)
+      tinyReportWrap.style.display = on ? "block" : "none";
+
+      // Report panel should be hidden by default
+      if(on){
+        panelReport.style.display = "none";
+        reportWrap.style.display = "none";
+        btnToggleReport.textContent = "Zobraziť";
+      }
+    }
+
+    // blokovanie refresh/odchodu – len počas session a len kým nie je hotovo
+    window.addEventListener("beforeunload", (e) => {
+      if(sessionActive && !isEverythingDone()){
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    });
+
     /* ===== OK banner logic ===== */
     function showOkBanner(mode){
       if(!currentTasks) return;
@@ -906,6 +959,7 @@
         btnOkExpress.style.display = needExpress && !expressDone ? "block" : "none";
       }
 
+      // keď je ok banner, session je bezpečná (hotovo)
       mainUi.style.display = "none";
       topOkBanner.style.display = "block";
       window.scrollTo({ top:0, behavior:"smooth" });
@@ -915,17 +969,6 @@
       topOkBanner.style.display = "none";
       mainUi.style.display = "block";
       window.scrollTo({ top:0, behavior:"smooth" });
-    }
-
-    function photosDone(){
-      const t=currentTasks;
-      if(!t) return false;
-
-      if(t.needStand && t.standCode && !isPhotoDoneToday(t.ap,"exact",t.standCode)) return false;
-      if(t.needB1 && t.b1Code && !isPhotoDoneToday(t.ap,"exact",t.b1Code)) return false;
-      if(t.needStatic && t.staticBase && !isPhotoDoneToday(t.ap,"base",t.staticBase)) return false;
-
-      return true;
     }
 
     function checkAutoOk(){
@@ -978,73 +1021,6 @@
       return div;
     }
 
-    function makeStaticRow(t, done){
-      const div = document.createElement("div");
-      div.className = "task" + (done ? " done" : "");
-
-      const left = document.createElement("div");
-      left.className="left";
-
-      const title = document.createElement("div");
-      title.className="title";
-      title.textContent="Fotím statický plagát";
-
-      const codeEl = document.createElement("div");
-      codeEl.className="code";
-      codeEl.textContent=t.staticBase || "—";
-
-      const suffixWrap = document.createElement("div");
-      suffixWrap.className="suffixWrap";
-
-      ["A","B","C"].forEach(s=>{
-        const b=document.createElement("div");
-        b.className="suffixBtn" + (t._suffix===s ? " active":"");
-        b.textContent=s;
-        b.addEventListener("click",(ev)=>{
-          ev.stopPropagation();
-          t._suffix = s;
-          renderTasks();
-
-          const base=t.staticBase||"";
-          if(!base) return;
-          // v tichom režime NEvnucujeme suffix do názvu súboru
-          // iba nastavíme do políčka "manualCode" číslo (ak je v DB číselné)
-          const numeric = cleanNumericCode(base);
-          if(numeric){
-            manualCode.value = numeric;
-            scanHint.style.display="none";
-            refreshCameraButton();
-            currentPhotoCode = manualCode.value.trim();
-            openCamera();
-          }else{
-            showToast("Zadaj číslo fotky.", 1800);
-          }
-        });
-        suffixWrap.appendChild(b);
-      });
-
-      left.appendChild(title);
-      left.appendChild(codeEl);
-      left.appendChild(suffixWrap);
-      div.appendChild(left);
-
-      div.addEventListener("click", ()=>{
-        const base=t.staticBase||"";
-        const numeric = cleanNumericCode(base);
-        if(!numeric){
-          showToast("Zadaj číslo fotky.", 1800);
-          return;
-        }
-        manualCode.value=numeric;
-        scanHint.style.display="none";
-        refreshCameraButton();
-        currentPhotoCode=numeric;
-        openCamera();
-      });
-
-      return div;
-    }
-
     function renderExpressUI(){
       exGrid.innerHTML = "";
       const suggested = expressSuggested || [];
@@ -1090,13 +1066,9 @@
           hint:t.standHint,
           done,
           onClick: ()=>{
-            const numeric = cleanNumericCode(t.standCode);
-            if(!numeric){ showToast("Zadaj číslo fotky.", 1800); return; }
-            manualCode.value=numeric;
-            scanHint.style.display="none";
-            refreshCameraButton();
-            currentPhotoCode=manualCode.value;
-            openCamera();
+            // len otvorí kameru podľa ručne zadaného číselného kódu
+            manualCode.focus();
+            showToast("Zadaj číslo fotky a daj Foto.", 1400);
           }
         }));
       }
@@ -1109,20 +1081,24 @@
           hint:t.b1Hint,
           done,
           onClick: ()=>{
-            const numeric = cleanNumericCode(t.b1Code);
-            if(!numeric){ showToast("Zadaj číslo fotky.", 1800); return; }
-            manualCode.value=numeric;
-            scanHint.style.display="none";
-            refreshCameraButton();
-            currentPhotoCode=manualCode.value;
-            openCamera();
+            manualCode.focus();
+            showToast("Zadaj číslo fotky a daj Foto.", 1400);
           }
         }));
       }
 
       if(t.needStatic && t.staticBase){
         const done = isPhotoDoneToday(t.ap,"base",t.staticBase);
-        taskList.appendChild(makeStaticRow(t, done));
+        taskList.appendChild(makeTaskRow({
+          label:"Fotím statický plagát",
+          code:t.staticBase,
+          hint:"Klikni a urob fotku (číselný kód zadáš hore).",
+          done,
+          onClick: ()=>{
+            manualCode.focus();
+            showToast("Zadaj číslo fotky a daj Foto.", 1400);
+          }
+        }));
       }
 
       if(t.needExpress){
@@ -1190,20 +1166,9 @@
       }, 200);
     });
 
-    window.addEventListener("focus", () => {
-      if(!lastBlob) showSaveIfFileReturned();
-    });
-
-    document.addEventListener("visibilitychange", () => {
-      if(document.visibilityState === "visible"){
-        if(!lastBlob) showSaveIfFileReturned();
-      }
-    });
-
     btnSavePhoto.addEventListener('click', ()=>{
       if(!lastBlob){ showToast("Chýba fotografia.", 1600); return; }
 
-      // FOTO KÓD = IBA ČÍSLA
       const code = cleanNumericCode(manualCode.value);
       manualCode.value = code;
       if(!code){ showToast("Zadaj číslo.", 1600); return; }
@@ -1211,9 +1176,9 @@
       currentPhotoCode = code;
       const filename = safeName(currentPhotoCode) + ".jpg";
 
-      // TICHÝ REŽIM: klasický download do Downloads (bez priečinkov, bez povolení)
+      // TICHÝ REŽIM: klasický download do Downloads
       downloadNow(lastBlob, filename);
-      showToast("Uložené ✓", 1200);
+      showToast("Uložené ✓", 1100);
 
       const ap = currentTasks?.ap || normCode(apInput.value);
 
@@ -1251,6 +1216,23 @@
       tasksCard.style.display = currentTasks ? "block" : "none";
     });
 
+    btnCamera.addEventListener("click", ()=>{
+      const c = cleanNumericCode(manualCode.value.trim());
+      manualCode.value = c;
+      if(!c) { showToast("Zadaj číslo.", 1400); return; }
+      currentPhotoCode=c;
+      openCamera();
+    });
+
+    manualCode.addEventListener("input", ()=>{
+      const cleaned = cleanNumericCode(manualCode.value);
+      if(manualCode.value !== cleaned) manualCode.value = cleaned;
+      scanHint.style.display="none";
+      refreshCameraButton();
+    });
+
+    refreshCameraButton();
+
     /* ===== EXPRESS ===== */
     btnExpressClose.addEventListener("click", ()=> expressAreaWrap.style.display="none");
 
@@ -1274,7 +1256,7 @@
       const s = "EXPRESS: " + (pickedNow.join(" ") || "ODOVZDANÝ");
       logExpress(s);
       expressAreaWrap.style.display="none";
-      showToast("Express uložený ✓", 1200);
+      showToast("Express uložený ✓", 1100);
       renderTasks();
     });
 
@@ -1282,7 +1264,7 @@
       expressStatus = "NOT";
       logExpress("EXPRESS: NEODOVZDANÝ");
       expressAreaWrap.style.display="none";
-      showToast("Express uložený ✓", 1200);
+      showToast("Express uložený ✓", 1100);
       renderTasks();
     });
 
@@ -1309,6 +1291,9 @@
       topOkBanner.style.display="none";
       mainUi.style.display="block";
 
+      // session off + UI back
+      setSessionActive(false);
+
       tasksCard.style.display="none";
       afterPhoto.style.display="none";
       taskList.innerHTML="";
@@ -1326,6 +1311,9 @@
       manualCode.value="";
       refreshCameraButton();
 
+      panelScan.style.display="none";
+      stopScanUI();
+
       miniInfoWrap.style.display="none";
       noteCard.style.display="none";
 
@@ -1336,13 +1324,13 @@
 
     /* ===== LOAD AP ===== */
     btnLoad.addEventListener("click", ()=>{
+      // zavri klávesnicu po vyhľadaní
+      apInput.blur();
+
       const ap = cleanCodeInput(apInput.value.trim());
       apInput.value = ap;
 
-      if(!ap || !idx) {
-        // v tichom režime nič nehlásime
-        return;
-      }
+      if(!ap || !idx) return;
 
       const t = computeTasks(ap);
       if(!t){
@@ -1363,19 +1351,18 @@
       tasksCard.style.display="block";
       renderTasks();
 
-      manualCode.focus();
+      // session ON: schovaj "kód plochy + hľadať", nech neruší
+      setSessionActive(true);
+
+      // nepcháme focus do manualCode automaticky, nech sa klávesnica neotvára sama
       window.scrollTo({ top:0, behavior:"smooth" });
     });
 
-    apInput.addEventListener("keydown", (e)=>{ if(e.key==="Enter") btnLoad.click(); });
-
-    /* ===== manual code ===== */
-    manualCode.addEventListener("input", ()=>{
-      const cleaned = cleanNumericCode(manualCode.value);
-      if(manualCode.value !== cleaned) manualCode.value = cleaned;
-
-      scanHint.style.display="none";
-      refreshCameraButton();
+    apInput.addEventListener("keydown", (e)=>{
+      if(e.key==="Enter"){
+        e.preventDefault();
+        btnLoad.click();
+      }
     });
 
     apInput.addEventListener("input", ()=>{
@@ -1383,15 +1370,12 @@
       if(apInput.value !== cleaned) apInput.value = cleaned;
     });
 
-    btnCamera.addEventListener("click", ()=>{
-      const c = cleanNumericCode(manualCode.value.trim());
-      manualCode.value = c;
-      if(!c) { showToast("Zadaj číslo.", 1400); return; }
-      currentPhotoCode=c;
-      openCamera();
+    /* ===== REPORT (tiny) ===== */
+    btnTinyReport.addEventListener("click", ()=>{
+      const vis = panelReport.style.display==="block";
+      panelReport.style.display = vis ? "none" : "block";
+      if(!vis) window.scrollTo({ top: document.body.scrollHeight, behavior:"smooth" });
     });
-
-    refreshCameraButton();
 
     /* ===== REPORT UI ===== */
     function renderReport(){
@@ -1470,7 +1454,6 @@
     });
     btnExportCsv.addEventListener("click", exportCsv);
 
-    // Namiesto confirm -> vlastný dialog
     btnDeleteDay.addEventListener("click", ()=>{
       const day = repDate.value || isoDate(new Date());
       delDayText.textContent = `Vymazať report len pre deň ${day}?`;
@@ -1502,6 +1485,13 @@
     let stream=null, scanning=false;
     function stopStream(){ if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } }
     function stopScan(){ scanning=false; stopStream(); }
+
+    function stopScanUI(){
+      stopScan();
+      btnStopScan.style.display = "none";
+      btnScanToggle.style.display = "block";
+      panelScan.style.display = "none";
+    }
 
     async function startScan(){
       if(!('BarcodeDetector' in window)) {
@@ -1537,8 +1527,7 @@
                   scanHint.style.display = "block";
                   refreshCameraButton();
 
-                  stopScan();
-                  panelScan.style.display="none";
+                  stopScanUI();
 
                   btnCamera.classList.add("pulse");
                   setTimeout(()=>btnCamera.classList.remove("pulse"), 1200);
@@ -1546,7 +1535,7 @@
                   window.scrollTo({ top:0, behavior:"smooth" });
                   return;
                 }else{
-                  showToast("Sken neobsahuje číslo.", 1800);
+                  showToast("Sken neobsahuje číslo.", 1600);
                 }
               }
             }
@@ -1555,21 +1544,20 @@
         };
         requestAnimationFrame(loop);
       }catch(e){
-        stopScan();
+        stopScanUI();
         showToast("Sken sa nespustil.", 1600);
       }
     }
 
-    btnMiniScan.addEventListener("click", ()=>{
-      panelScan.style.display = (panelScan.style.display==="block") ? "none" : "block";
-      if(panelScan.style.display==="block") startScan();
+    btnScanToggle.addEventListener("click", ()=>{
+      panelScan.style.display = "block";
+      btnScanToggle.style.display = "none";
+      btnStopScan.style.display = "block";
+      startScan();
     });
+
     btnStopScan.addEventListener("click", ()=>{
-      stopScan();
-      panelScan.style.display="none";
-    });
-    btnMiniReport.addEventListener("click", ()=>{
-      panelReport.style.display = (panelReport.style.display==="block") ? "none" : "block";
+      stopScanUI();
     });
 
     /* ===== Init ===== */
@@ -1578,6 +1566,10 @@
     repName.addEventListener('change', ()=> localStorage.setItem(REP_KEY, repName.value.trim()));
 
     document.getElementById("appVersion").textContent = APP_VERSION;
+
+    // report panel defaultne skrytý a tiny link skrytý (ukáže sa až po načítaní AP)
+    panelReport.style.display = "none";
+    tinyReportWrap.style.display = "none";
 
     loadDbXlsx();
     apInput.focus();
