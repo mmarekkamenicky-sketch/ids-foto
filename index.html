@@ -51,7 +51,7 @@
       color:var(--text);
       margin:14px;
       max-width:720px;
-      overscroll-behavior-y: contain; /* proti pull-to-refresh (pomáha) */
+      overscroll-behavior-y: contain;
     }
 
     .card{
@@ -164,6 +164,59 @@
     }
     .okTitle{ font-weight:900; font-size:24px; line-height:1.15; }
     .okSub{ color:rgba(11,42,91,.75); font-weight:800; font-size:13px; }
+
+    /* NEW: thumbs on OK screen */
+    #okProofWrap{
+      width:100%;
+      max-width:520px;
+      display:none;
+      text-align:left;
+    }
+    .proofTitle{
+      font-weight:900;
+      font-size:12px;
+      letter-spacing:.03em;
+      color:rgba(11,42,91,.60);
+      text-transform:uppercase;
+      margin:4px 0 8px;
+      border-radius:0;
+    }
+    .thumbGrid{
+      display:grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap:10px;
+    }
+    .thumbCard{
+      background:#fff;
+      box-shadow: 0 10px 26px rgba(11,42,91,.06);
+      padding:10px;
+      border-radius:var(--r);
+      overflow:hidden;
+    }
+    .thumbImg{
+      width:100%;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+      background:#eef2fb;
+      border-radius:12px;
+      display:block;
+    }
+    .thumbCode{
+      margin-top:8px;
+      font-weight:900;
+      font-size:12px;
+      color:var(--ids-navy);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .thumbTime{
+      margin-top:3px;
+      font-weight:800;
+      font-size:11px;
+      color:rgba(11,42,91,.55);
+      border-radius:0;
+    }
 
     /* Next suggestions */
     #okNextWrap{ width:100%; max-width:520px; text-align:left; display:none; }
@@ -444,6 +497,13 @@
       <button id="btnOkNext" class="btn green" style="width:100%;max-width:360px">Nové</button>
       <button id="btnOkExpress" class="btn gray" style="width:100%;max-width:360px; display:none">Express</button>
 
+      <!-- NEW: PROOF (thumbs) -->
+      <div id="okProofWrap">
+        <div class="proofTitle">Uložené fotky (dnes / táto plocha)</div>
+        <div id="okThumbGrid" class="thumbGrid"></div>
+      </div>
+
+      <!-- NAV -->
       <div id="okNextWrap">
         <div class="okNextTitle">Pokračovať na plochy</div>
         <div class="okNextGroup" id="okNextGroup"></div>
@@ -579,7 +639,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <script>
-    const APP_VERSION = "V32-WAITINGFLAG-NOREDRETURN";
+    const APP_VERSION = "V33-THUMBS-PROOF";
 
     /* ===== SW ===== */
     if ("serviceWorker" in navigator) {
@@ -694,6 +754,10 @@
 
     const okNextWrap = document.getElementById('okNextWrap');
     const okNextGroup = document.getElementById('okNextGroup');
+
+    // NEW proof
+    const okProofWrap = document.getElementById('okProofWrap');
+    const okThumbGrid = document.getElementById('okThumbGrid');
 
     const apWrap = document.getElementById('apWrap');
     const apInput = document.getElementById('apInput');
@@ -870,14 +934,13 @@
 
     /* ===== STATE ===== */
     let currentTasks=null;
-    let currentPhotoCode="";
     let lastBlob=null;
 
     let expressStatus="NA";
     let expressSuggested=[];
     let sessionLocked=false;
 
-    // ✅ Nové: overlay iba keď SKUTOČNE čakáme na fotku
+    // overlay iba keď čakáme na fotku
     let waitingForPhoto = false;
 
     function computeTasks(ap){
@@ -893,7 +956,6 @@
       const standCode = norm(row[IDX_STAND_CODE]);
       const b1Code = norm(row[IDX_B1_CODE]);
 
-      // base kód pre statický (bez písmena)
       let staticBase = norm(row[IDX_STATIC_CODE]);
       staticBase = staticBase.replace(/[A-Z]$/i, "");
 
@@ -913,13 +975,20 @@
     }
 
     /* ===== LOG ===== */
-    const LOG_KEY="ids_foto_log_v32";
-    const REP_KEY="ids_rep_name_v32";
+    const LOG_KEY="ids_foto_log_v33";
+    const REP_KEY="ids_rep_name_v33";
 
     function loadLog(){ try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); } catch { return []; } }
     function saveLog(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)); }
 
-    function addLogEntry(ap, photoCode, posters, note, file){
+    function pruneLog(log){
+      // poistka proti nafúknutiu (thumby zaberajú miesto)
+      const MAX = 400; // cca bezpečné pre localStorage
+      if(log.length > MAX) return log.slice(-MAX);
+      return log;
+    }
+
+    function addLogEntry(ap, photoCode, posters, note, file, thumb){
       const now = new Date();
       const entry = {
         ts: now.toISOString().slice(0,19),
@@ -929,11 +998,12 @@
         photoCode: photoCode || "",
         posters: posters || [],
         note: note || "",
-        file: file || ""
+        file: file || "",
+        thumb: thumb || ""   // NEW
       };
       const log = loadLog();
       log.push(entry);
-      saveLog(log);
+      saveLog(pruneLog(log));
     }
 
     function isPhotoDoneToday(ap, type, codeOrBase){
@@ -970,6 +1040,31 @@
       if(t.needStand && t.standCode && !isPhotoDoneToday(t.ap,"exact",t.standCode)) n++;
       if(t.needB1 && t.b1Code && !isPhotoDoneToday(t.ap,"exact",t.b1Code)) n++;
       return n;
+    }
+
+    /* ===== Thumbnail maker (NEW) ===== */
+    async function makeThumbFromBlob(blob){
+      try{
+        // create bitmap
+        const bmp = await createImageBitmap(blob);
+        const max = 220; // px
+        const w = bmp.width, h = bmp.height;
+        const s = Math.min(1, max / Math.max(w, h));
+        const tw = Math.max(1, Math.round(w * s));
+        const th = Math.max(1, Math.round(h * s));
+
+        const c = document.createElement("canvas");
+        c.width = tw; c.height = th;
+        const x = c.getContext("2d");
+        x.drawImage(bmp, 0, 0, tw, th);
+
+        // komprimuj
+        const dataUrl = c.toDataURL("image/jpeg", 0.62);
+        bmp.close && bmp.close();
+        return dataUrl;
+      }catch(e){
+        return "";
+      }
     }
 
     /* ===== NAV suggestions ===== */
@@ -1039,6 +1134,48 @@
       okNextWrap.style.display = "block";
     }
 
+    /* ===== NEW: proof thumbnails on OK ===== */
+    function renderOkProofThumbs(){
+      okThumbGrid.innerHTML = "";
+      okProofWrap.style.display = "none";
+      if(!currentTasks) return;
+
+      const day = repDate.value || isoDate(new Date());
+      const ap = currentTasks.ap;
+
+      const items = loadLog()
+        .filter(x => x.day === day && String(x.ap||"") === ap && norm(x.photoCode) !== "")
+        .sort((a,b)=> (a.ts||"").localeCompare(b.ts||""))
+        .slice(-12); // posledných 12
+
+      if(!items.length) return;
+
+      items.forEach(it=>{
+        const wrap = document.createElement("div");
+        wrap.className = "thumbCard";
+
+        const img = document.createElement("img");
+        img.className = "thumbImg";
+        img.alt = it.photoCode || "";
+        img.src = it.thumb || ""; // ak nie je, bude len prázdne pozadie
+        wrap.appendChild(img);
+
+        const code = document.createElement("div");
+        code.className = "thumbCode";
+        code.textContent = (it.file || (it.photoCode ? (it.photoCode + ".jpg") : "—"));
+        wrap.appendChild(code);
+
+        const t = document.createElement("div");
+        t.className = "thumbTime";
+        t.textContent = fmtTime(it.ts);
+        wrap.appendChild(t);
+
+        okThumbGrid.appendChild(wrap);
+      });
+
+      okProofWrap.style.display = "block";
+    }
+
     /* ===== OK banner ===== */
     function showOkBanner(mode){
       if(!currentTasks) return;
@@ -1056,6 +1193,7 @@
         btnOkExpress.style.display = needExpress && !expressDone ? "block" : "none";
       }
 
+      renderOkProofThumbs();
       buildNextSuggestions();
 
       mainUi.style.display = "none";
@@ -1258,7 +1396,6 @@
       manualCode.value = c;
       scanHint.style.display = "none";
       refreshCameraButton();
-      currentPhotoCode = c;
 
       if(document.activeElement) document.activeElement.blur();
       manualCode.blur();
@@ -1269,11 +1406,8 @@
     function openCamera(){
       if(!manualCode.value.trim()) return;
 
-      // ✅ iba teraz čakáme na fotku
       waitingForPhoto = true;
       lastBlob = null;
-
-      // ✅ vymaž starý file, aby sa po odomknutí nevracal
       photoInput.value = "";
       photoInput.click();
     }
@@ -1290,13 +1424,12 @@
     }
 
     function showSaveIfFileReturned(){
-      // ✅ ak nečakáme na fotku, nikdy nič neukazuj
       if(!waitingForPhoto) return false;
 
       const f = photoInput.files && photoInput.files[0];
       if(f){
         lastBlob = f;
-        waitingForPhoto = false; // ✅ už sme dostali súbor
+        waitingForPhoto = false;
         showSaveOverlay();
         return true;
       }
@@ -1312,7 +1445,6 @@
         setTimeout(() => {
           if (showSaveIfFileReturned()) return;
 
-          // ✅ nič neprišlo, končíme čakanie
           waitingForPhoto = false;
           lastBlob = null;
           photoInput.value = "";
@@ -1320,7 +1452,6 @@
       }, 200);
     });
 
-    // ✅ fallbacky iba keď čakáme na fotku
     window.addEventListener("focus", () => {
       if(waitingForPhoto) showSaveIfFileReturned();
     });
@@ -1330,12 +1461,15 @@
       }
     });
 
-    function doSavePhoto(){
+    async function doSavePhoto(){
       if(!lastBlob) return;
 
       const code = cleanCodeInput(manualCode.value);
       manualCode.value = code;
       if(!code) return;
+
+      // NEW: thumb
+      const thumb = await makeThumbFromBlob(lastBlob);
 
       const filename = safeName(code) + ".jpg";
       downloadNow(lastBlob, filename);
@@ -1353,11 +1487,9 @@
       }
 
       const note = norm(noteText.value);
-      addLogEntry(ap, code, posters, note, filename);
+      addLogEntry(ap, code, posters, note, filename, thumb);
 
       lastBlob=null;
-
-      // ✅ kritické: vyčisti file input + ukonči čakanie
       waitingForPhoto = false;
       photoInput.value = "";
 
@@ -1373,11 +1505,8 @@
 
     btnCancelOverlay.addEventListener("click", ()=>{
       lastBlob = null;
-
-      // ✅ ukonči čakanie + vyčisti input
       waitingForPhoto = false;
       photoInput.value = "";
-
       hideSaveOverlay();
       if(currentTasks){
         tasksCard.style.display="block";
@@ -1399,7 +1528,7 @@
       if(extra) s += " | " + extra;
 
       const finalNote = [baseNote, s].filter(Boolean).join(" | ");
-      addLogEntry(ap, "", posters, finalNote, "");
+      addLogEntry(ap, "", posters, finalNote, "", "");
     }
 
     btnExpressDelivered.addEventListener("click", ()=>{
@@ -1465,7 +1594,6 @@
       tasksCard.style.display="none";
       taskList.innerHTML="";
       currentTasks=null;
-      currentPhotoCode="";
       lastBlob=null;
 
       expressStatus="NA";
@@ -1486,7 +1614,6 @@
       setRefreshLock(false);
       setSessionUI(false);
 
-      // ✅ ukonči čakanie + vyčisti input
       waitingForPhoto = false;
       photoInput.value = "";
 
@@ -1524,7 +1651,6 @@
       setSessionUI(true);
 
       apInput.blur();
-
       window.scrollTo({ top:0, behavior:"smooth" });
     }
 
