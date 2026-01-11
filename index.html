@@ -521,7 +521,6 @@
     <div id="apWrap" class="card">
       <div class="col">
         <input id="apInput" class="apInput" placeholder="Kód plochy" autocomplete="off" autocapitalize="characters" />
-        <!-- ZMENA: červené + Vyhľadať -->
         <button id="btnLoad" class="btn red">Vyhľadať</button>
       </div>
     </div>
@@ -593,11 +592,15 @@
       <div class="sp"></div>
       <div class="row">
         <button id="btnToggleReport" class="btn gray" style="flex:1">Zobraziť</button>
-        <button id="btnExportCsv" class="btn gray" style="flex:1">CSV</button>
+        <button id="btnShareHtml" class="btn gray" style="flex:1">Zdieľať HTML</button>
       </div>
       <div class="sp"></div>
       <div class="row">
+        <button id="btnExportCsv" class="btn gray" style="flex:1">CSV</button>
         <button id="btnDeleteDay" class="btn gray" style="flex:1">Vymazať deň</button>
+      </div>
+      <div class="sp"></div>
+      <div class="row">
         <button id="btnDeleteAll" class="btn red" style="flex:1">Vymazať všetko</button>
       </div>
       <div id="reportWrap" style="display:none"></div>
@@ -642,7 +645,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <script>
-    const APP_VERSION = "V33-THUMBS-PROOF";
+    const APP_VERSION = "V34-SHARE-HTML";
 
     /* ===== SW ===== */
     if ("serviceWorker" in navigator) {
@@ -794,6 +797,7 @@
     const repName = document.getElementById('repName');
     const repDate = document.getElementById('repDate');
     const btnToggleReport = document.getElementById('btnToggleReport');
+    const btnShareHtml = document.getElementById('btnShareHtml');   // NEW
     const btnExportCsv = document.getElementById('btnExportCsv');
     const reportWrap = document.getElementById('reportWrap');
 
@@ -1716,6 +1720,104 @@
       reportWrap.innerHTML = html;
     }
 
+    function escapeHtml(s){
+      return String(s ?? "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#39;");
+    }
+
+    async function shareFileOrDownload(blob, filename){
+      try{
+        if(navigator.share && window.File){
+          const file = new File([blob], filename, { type: blob.type || "application/octet-stream" });
+          if(navigator.canShare && navigator.canShare({ files:[file] })){
+            await navigator.share({ files:[file], title: filename, text: "IDS Foto report" });
+            return true;
+          }
+        }
+      }catch(e){
+        // ticho – fallback na stiahnutie
+      }
+      downloadNow(blob, filename);
+      return false;
+    }
+
+    function buildHtmlReportForDay(day){
+      const who = (repName.value || "").trim();
+      const rows = loadLog()
+        .filter(x => x.day === day)
+        .slice()
+        .sort((a,b)=> (a.ts||"").localeCompare(b.ts||""));
+
+      const totalPhotos = rows.filter(r => (r.photoCode||"").trim() !== "").length;
+      const totalExpress = rows.filter(r => String(r.note||"").includes("EXPRESS:")).length;
+
+      const tr = rows.map(r=>{
+        const posters = (r.posters && r.posters.length) ? r.posters.join(", ") : "";
+        return `<tr>
+          <td>${escapeHtml(fmtTime(r.ts))}</td>
+          <td>${escapeHtml(r.who||"")}</td>
+          <td><b>${escapeHtml(r.ap||"")}</b></td>
+          <td>${escapeHtml(r.photoCode||"")}</td>
+          <td>${escapeHtml(posters)}</td>
+          <td>${escapeHtml(r.note||"")}</td>
+          <td>${escapeHtml(r.file||"")}</td>
+        </tr>`;
+      }).join("\n");
+
+      const doc = `<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IDS Foto report ${escapeHtml(day)}</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:18px;color:#0b2a5b;background:#fff}
+  h1{font-size:18px;margin:0 0 8px}
+  .meta{font-size:12px;color:rgba(11,42,91,.70);font-weight:700;margin:0 0 14px}
+  .kpi{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+  .pill{background:#f1f3fb;border-radius:999px;padding:8px 10px;font-weight:800;font-size:12px}
+  table{width:100%;border-collapse:collapse}
+  th,td{border-bottom:1px solid #e9edf6;padding:8px 6px;font-size:12px;vertical-align:top;text-align:left}
+  th{font-size:11px;color:rgba(11,42,91,.65);text-transform:uppercase;letter-spacing:.04em}
+  b{font-weight:900}
+</style>
+</head>
+<body>
+  <h1>IDS Foto – denný report</h1>
+  <div class="meta">Deň: <b>${escapeHtml(day)}</b> &nbsp; | &nbsp; Kto: <b>${escapeHtml(who || "—")}</b></div>
+  <div class="kpi">
+    <div class="pill">Fotky: ${totalPhotos}</div>
+    <div class="pill">Express záznamy: ${totalExpress}</div>
+    <div class="pill">Záznamy spolu: ${rows.length}</div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Čas</th><th>Kto</th><th>AP</th><th>Fotil</th><th>Plagáty</th><th>Poznámka</th><th>Súbor</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${tr || "<tr><td colspan='7'>—</td></tr>"}
+    </tbody>
+  </table>
+</body>
+</html>`;
+      return doc;
+    }
+
+    async function shareHtmlReport(){
+      const day = repDate.value || isoDate(new Date());
+      const html = buildHtmlReportForDay(day);
+      const blob = new Blob([html], { type:"text/html;charset=utf-8" });
+      const filename = `report_${day}_${safeName(repName.value || "repre")}.html`;
+      await shareFileOrDownload(blob, filename);
+    }
+
     function escapeCsv(s){
       const v = String(s ?? "");
       if (/[",\n;]/.test(v)) return `"${v.replaceAll('"','""')}"`;
@@ -1763,6 +1865,8 @@
         renderReport();
       }
     });
+
+    btnShareHtml.addEventListener("click", shareHtmlReport); // NEW
     btnExportCsv.addEventListener("click", exportCsv);
 
     btnDeleteDay.addEventListener("click", ()=>{
