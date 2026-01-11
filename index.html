@@ -115,18 +115,6 @@
       padding:16px 16px;
     }
 
-    .linkBtn{
-      border:0;
-      background:transparent;
-      color:rgba(11,42,91,.75);
-      font-weight:900;
-      font-size:13px;
-      padding:8px 10px;
-      cursor:pointer;
-      text-decoration:underline;
-      border-radius:12px;
-    }
-
     .sp{height:10px}
     .sp2{height:14px}
 
@@ -322,7 +310,7 @@
     }
     .task.done .hint{ background:rgba(255,255,255,.55); color:var(--ids-green); }
 
-    /* NEW: sivá nenápadná bublinka (DP) */
+    /* sivá nenápadná bublinka (DP) */
     .task.dpTask{
       background:#eef2fb;
       color:var(--ids-navy);
@@ -515,13 +503,16 @@
         <div id="okThumbGrid" class="thumbGrid"></div>
       </div>
 
+      <!-- NEW: full button back to job (replaces "Zobraziť podrobnosti") -->
+      <button id="btnBackToJob" class="btn gray" style="width:100%;max-width:360px">
+        Späť na plochu
+      </button>
+
       <!-- NAV -->
       <div id="okNextWrap">
         <div class="okNextTitle">Pokračovať na plochy</div>
         <div class="okNextGroup" id="okNextGroup"></div>
       </div>
-
-      <button id="btnShowDetails" class="linkBtn">Zobraziť podrobnosti</button>
     </div>
   </div>
 
@@ -532,7 +523,6 @@
       <div class="col">
         <input id="apInput" class="apInput" placeholder="Kód plochy" autocomplete="off" autocapitalize="characters" />
         <button id="btnLoad" class="btn red">Vyhľadať</button>
-        <!-- NEW: report button on intro page -->
         <button id="btnHomeReport" class="btn gray">Report</button>
       </div>
     </div>
@@ -652,7 +642,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <script>
-    const APP_VERSION = "V35-OK-PERSIST-DP-HTML";
+    const APP_VERSION = "V36-BACKBTN";
 
     /* ===== SW ===== */
     if ("serviceWorker" in navigator) {
@@ -763,7 +753,7 @@
     const okSub = document.getElementById('okSub');
     const btnOkNext = document.getElementById('btnOkNext');
     const btnOkExpress = document.getElementById('btnOkExpress');
-    const btnShowDetails = document.getElementById('btnShowDetails');
+    const btnBackToJob = document.getElementById('btnBackToJob');
 
     const okNextWrap = document.getElementById('okNextWrap');
     const okNextGroup = document.getElementById('okNextGroup');
@@ -986,11 +976,11 @@
     }
 
     /* ===== LOG ===== */
-    const LOG_KEY="ids_foto_log_v35";
-    const REP_KEY="ids_rep_name_v35";
+    const LOG_KEY="ids_foto_log_v36";
+    const REP_KEY="ids_rep_name_v36";
 
     // OK state persistence
-    const OK_STATE_KEY = "ids_ok_state_v35";
+    const OK_STATE_KEY = "ids_ok_state_v36";
 
     function loadLog(){ try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); } catch { return []; } }
     function saveLog(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)); }
@@ -1129,9 +1119,9 @@
       if(!currentTasks || !currentTasks.row || !idx) return;
 
       const row = currentTasks.row;
-      const kA = keyAddr(row);
-      const kS = keyCityStreet(row);
-      const kC = keyCity(row);
+      const kA = [normCode(row[IDX_CITY]), normCode(row[IDX_STREET]), normCode(row[IDX_HOUSE])].join("|");
+      const kS = [normCode(row[IDX_CITY]), normCode(row[IDX_STREET])].join("|");
+      const kC = normCode(row[IDX_CITY]);
 
       const sameAddr = (navIndex.byAddr.get(kA) || []).filter(ap => ap !== currentTasks.ap && !apIsFullyDoneToday(ap));
       const sameStreet = (navIndex.byStreet.get(kS) || []).filter(ap => ap !== currentTasks.ap && !apIsFullyDoneToday(ap) && !sameAddr.includes(ap));
@@ -1232,7 +1222,6 @@
       mainUi.style.display = "none";
       topOkBanner.style.display = "block";
 
-      // persist OK screen so it survives closing/reopening the page
       saveOkState(mode);
 
       window.scrollTo({ top:0, behavior:"smooth" });
@@ -1246,8 +1235,7 @@
 
     function checkAutoOk(){
       if(!currentTasks) return;
-      if(currentTasks.needStatic) return;  // manual finish pre statické
-
+      if(currentTasks.needStatic) return;
       if(!photosDone()) return;
 
       if(currentTasks.needExpress && expressStatus === "NA"){
@@ -1258,12 +1246,12 @@
     }
 
     btnOkNext.addEventListener("click", ()=> resetToNew());
-    btnShowDetails.addEventListener("click", ()=> hideOkBannerShowDetails());
     btnOkExpress.addEventListener("click", ()=>{
       hideOkBannerShowDetails();
       openExpressArea();
       window.scrollTo({ top: document.body.scrollHeight, behavior:"smooth" });
     });
+    btnBackToJob.addEventListener("click", ()=> hideOkBannerShowDetails());
 
     /* ===== RENDER TASKS ===== */
     function makeTaskRow({label, code, hint, done, extraClass, onClick}){
@@ -1420,7 +1408,7 @@
         }));
       }
 
-      /* NEW: Digital panel (DP) – nenápadná sivá bublinka pod express */
+      /* Digital panel (DP) – sivá bublinka */
       const dpCode = (t.ap ? (t.ap + "DP") : "");
       if(dpCode){
         const dpDone = isPhotoDoneToday(t.ap, "exact", dpCode);
@@ -1673,7 +1661,7 @@
 
     /* ===== LOAD AP ===== */
     function startSessionForAP(ap){
-      clearOkState(); // nový session = zruš starú hotovú obrazovku
+      clearOkState();
 
       const apC = cleanCodeInput(ap);
       apInput.value = apC;
@@ -1932,7 +1920,6 @@
       if(reportWrap.style.display === "block") renderReport();
     });
 
-    // NEW: report button on intro page
     btnHomeReport.addEventListener("click", ()=>{
       panelReport.style.display = (panelReport.style.display==="block") ? "none" : "block";
       if(panelReport.style.display==="block"){
@@ -2015,7 +2002,6 @@
       const today = repDate.value || isoDate(new Date());
       if(st.day !== today){ clearOkState(); return; }
 
-      // wait for DB a bit so suggestions can render
       let tries = 0;
       while((!idx || !idx.byAP) && tries < 40){
         await new Promise(r=>setTimeout(r, 100));
@@ -2031,7 +2017,6 @@
           renderMiniInfo(currentTasks.row);
           renderTasks();
 
-          // keep session UI hidden (we are on OK screen anyway)
           setRefreshLock(true);
           setSessionUI(true);
         }
