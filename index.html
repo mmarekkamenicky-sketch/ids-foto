@@ -579,7 +579,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <script>
-    const APP_VERSION = "V31-STATIC-4TASKS-MANUALFINISH";
+    const APP_VERSION = "V32-WAITINGFLAG-NOREDRETURN";
 
     /* ===== SW ===== */
     if ("serviceWorker" in navigator) {
@@ -877,6 +877,9 @@
     let expressSuggested=[];
     let sessionLocked=false;
 
+    // ✅ Nové: overlay iba keď SKUTOČNE čakáme na fotku
+    let waitingForPhoto = false;
+
     function computeTasks(ap){
       if(!idx) return null;
       const apN = normCode(ap);
@@ -910,8 +913,8 @@
     }
 
     /* ===== LOG ===== */
-    const LOG_KEY="ids_foto_log_v31";
-    const REP_KEY="ids_rep_name_v31";
+    const LOG_KEY="ids_foto_log_v32";
+    const REP_KEY="ids_rep_name_v32";
 
     function loadLog(){ try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); } catch { return []; } }
     function saveLog(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)); }
@@ -943,7 +946,6 @@
       return false;
     }
 
-    // ✅ statické ako 4 presné fotky: base / A / B / C
     function isStaticDone(ap, staticBase, suffix){
       const base = normCode(staticBase);
       if(!base) return false;
@@ -951,7 +953,6 @@
       return isPhotoDoneToday(ap, "exact", code);
     }
 
-    // ✅ povinné len stojan + B1
     function photosDone(){
       const t=currentTasks;
       if(!t) return false;
@@ -990,7 +991,6 @@
       if(t.needStand && t.standCode && !isPhotoDoneToday(ap,"exact",t.standCode)) return false;
       if(t.needB1 && t.b1Code && !isPhotoDoneToday(ap,"exact",t.b1Code)) return false;
 
-      // statické sú voliteľné – neblokujú “hotovo” pri navigácii
       return true;
     }
 
@@ -1069,10 +1069,9 @@
       window.scrollTo({ top:0, behavior:"smooth" });
     }
 
-    // ✅ AUTO OK: nikdy, keď existuje statický (manual rozhodnutie)
     function checkAutoOk(){
       if(!currentTasks) return;
-      if(currentTasks.needStatic) return;  // <- toto je celé kúzlo
+      if(currentTasks.needStatic) return;  // manual finish pre statické
 
       if(!photosDone()) return;
 
@@ -1199,7 +1198,6 @@
         }));
       }
 
-      // ✅ statické = 4 samostatné bublinky (voliteľné)
       if(t.needStatic && t.staticBase){
         const base = normCode(t.staticBase);
 
@@ -1270,7 +1268,13 @@
 
     function openCamera(){
       if(!manualCode.value.trim()) return;
-      photoInput.value="";
+
+      // ✅ iba teraz čakáme na fotku
+      waitingForPhoto = true;
+      lastBlob = null;
+
+      // ✅ vymaž starý file, aby sa po odomknutí nevracal
+      photoInput.value = "";
       photoInput.click();
     }
 
@@ -1286,9 +1290,13 @@
     }
 
     function showSaveIfFileReturned(){
+      // ✅ ak nečakáme na fotku, nikdy nič neukazuj
+      if(!waitingForPhoto) return false;
+
       const f = photoInput.files && photoInput.files[0];
       if(f){
         lastBlob = f;
+        waitingForPhoto = false; // ✅ už sme dostali súbor
         showSaveOverlay();
         return true;
       }
@@ -1303,17 +1311,22 @@
 
         setTimeout(() => {
           if (showSaveIfFileReturned()) return;
+
+          // ✅ nič neprišlo, končíme čakanie
+          waitingForPhoto = false;
           lastBlob = null;
+          photoInput.value = "";
         }, 500);
       }, 200);
     });
 
+    // ✅ fallbacky iba keď čakáme na fotku
     window.addEventListener("focus", () => {
-      if(!lastBlob) showSaveIfFileReturned();
+      if(waitingForPhoto) showSaveIfFileReturned();
     });
     document.addEventListener("visibilitychange", () => {
       if(document.visibilityState === "visible"){
-        if(!lastBlob) showSaveIfFileReturned();
+        if(waitingForPhoto) showSaveIfFileReturned();
       }
     });
 
@@ -1343,6 +1356,11 @@
       addLogEntry(ap, code, posters, note, filename);
 
       lastBlob=null;
+
+      // ✅ kritické: vyčisti file input + ukonči čakanie
+      waitingForPhoto = false;
+      photoInput.value = "";
+
       hideSaveOverlay();
 
       if(currentTasks){
@@ -1355,6 +1373,11 @@
 
     btnCancelOverlay.addEventListener("click", ()=>{
       lastBlob = null;
+
+      // ✅ ukonči čakanie + vyčisti input
+      waitingForPhoto = false;
+      photoInput.value = "";
+
       hideSaveOverlay();
       if(currentTasks){
         tasksCard.style.display="block";
@@ -1401,11 +1424,9 @@
       const miss=[];
       if(!t) return miss;
 
-      // ✅ povinné len stojan + B1
       if(t.needStand && t.standCode && !isPhotoDoneToday(t.ap,"exact",t.standCode)) miss.push("stojan");
       if(t.needB1 && t.b1Code && !isPhotoDoneToday(t.ap,"exact",t.b1Code)) miss.push("B1");
 
-      // statické sú voliteľné – nikdy ich nedávame ako “chýba”
       return miss;
     }
 
@@ -1414,7 +1435,6 @@
       const miss = missingListForPhotosOnly();
 
       if(miss.length===0){
-        // ✅ hotovo vždy až cez Ukončiť (statické môže byť nedofotené)
         if(currentTasks.needExpress && expressStatus==="NA"){ showOkBanner("PHOTOS_ONLY"); return; }
         showOkBanner("ALL");
         return;
@@ -1465,6 +1485,10 @@
 
       setRefreshLock(false);
       setSessionUI(false);
+
+      // ✅ ukonči čakanie + vyčisti input
+      waitingForPhoto = false;
+      photoInput.value = "";
 
       apInput.focus();
       window.scrollTo({ top:0, behavior:"smooth" });
