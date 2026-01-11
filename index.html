@@ -167,7 +167,7 @@
     .okTitle{ font-weight:900; font-size:24px; line-height:1.15; }
     .okSub{ color:rgba(11,42,91,.75); font-weight:800; font-size:13px; }
 
-    /* NEW: thumbs on OK screen */
+    /* thumbs on OK screen */
     #okProofWrap{
       width:100%;
       max-width:520px;
@@ -287,6 +287,7 @@
       border-radius:var(--r);
     }
     .task.done{ background:var(--greenBg); color:var(--ids-green); }
+
     .task .left{ display:flex; flex-direction:column; gap:10px; min-width:0; flex:1 1 auto; }
     .task .title{ font-weight:900; font-size:16px; line-height:1.1; color:#fff; }
     .task.done .title{ color:var(--ids-green); }
@@ -320,6 +321,34 @@
       border-radius:var(--r);
     }
     .task.done .hint{ background:rgba(255,255,255,.55); color:var(--ids-green); }
+
+    /* NEW: sivá nenápadná bublinka (DP) */
+    .task.dpTask{
+      background:#eef2fb;
+      color:var(--ids-navy);
+    }
+    .task.dpTask .title{ color:var(--ids-navy); }
+    .task.dpTask .code{
+      color:var(--ids-navy);
+      background:rgba(11,42,91,.08);
+    }
+    .task.dpTask .hint{
+      color:rgba(11,42,91,.75);
+      background:rgba(11,42,91,.06);
+    }
+    .task.dpTask.done{
+      background:var(--greenBg);
+      color:var(--ids-green);
+    }
+    .task.dpTask.done .title{ color:var(--ids-green); }
+    .task.dpTask.done .code{
+      color:var(--ids-green);
+      background:rgba(255,255,255,.70);
+    }
+    .task.dpTask.done .hint{
+      color:var(--ids-green);
+      background:rgba(255,255,255,.55);
+    }
 
     /* Express */
     #expressAreaWrap{ display:none; }
@@ -394,25 +423,6 @@
       0%{ transform:scale(1); filter:brightness(1); }
       50%{ transform:scale(1.03); filter:brightness(1.05); }
       100%{ transform:scale(1); filter:brightness(1); }
-    }
-
-    /* Tiny report */
-    #tinyReportWrap{
-      display:none;
-      margin-top:14px;
-      text-align:center;
-    }
-    .tinyLink{
-      border:0;
-      background:transparent;
-      color:rgba(11,42,91,.35);
-      font-weight:900;
-      font-size:12px;
-      letter-spacing:.03em;
-      text-decoration:underline;
-      cursor:pointer;
-      padding:6px 10px;
-      border-radius:999px;
     }
 
     /* FULLSCREEN SAVE WARNING */
@@ -522,6 +532,8 @@
       <div class="col">
         <input id="apInput" class="apInput" placeholder="Kód plochy" autocomplete="off" autocapitalize="characters" />
         <button id="btnLoad" class="btn red">Vyhľadať</button>
+        <!-- NEW: report button on intro page -->
+        <button id="btnHomeReport" class="btn gray">Report</button>
       </div>
     </div>
 
@@ -577,11 +589,6 @@
     </div>
 
     <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none" />
-
-    <!-- Report (tiny link) -->
-    <div id="tinyReportWrap">
-      <button id="btnTinyReport" class="tinyLink">Report</button>
-    </div>
 
     <!-- Report panel -->
     <div id="panelReport" class="card">
@@ -645,7 +652,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <script>
-    const APP_VERSION = "V34-SHARE-HTML";
+    const APP_VERSION = "V35-OK-PERSIST-DP-HTML";
 
     /* ===== SW ===== */
     if ("serviceWorker" in navigator) {
@@ -767,6 +774,7 @@
     const apWrap = document.getElementById('apWrap');
     const apInput = document.getElementById('apInput');
     const btnLoad = document.getElementById('btnLoad');
+    const btnHomeReport = document.getElementById('btnHomeReport');
 
     const manualCode = document.getElementById('manualCode');
     const btnCamera = document.getElementById('btnCamera');
@@ -797,7 +805,7 @@
     const repName = document.getElementById('repName');
     const repDate = document.getElementById('repDate');
     const btnToggleReport = document.getElementById('btnToggleReport');
-    const btnShareHtml = document.getElementById('btnShareHtml');   // NEW
+    const btnShareHtml = document.getElementById('btnShareHtml');
     const btnExportCsv = document.getElementById('btnExportCsv');
     const reportWrap = document.getElementById('reportWrap');
 
@@ -819,8 +827,6 @@
     const btnFinishNo = document.getElementById('btnFinishNo');
     const btnFinishYes = document.getElementById('btnFinishYes');
 
-    const tinyReportWrap = document.getElementById('tinyReportWrap');
-    const btnTinyReport = document.getElementById('btnTinyReport');
     const panelReport = document.getElementById('panelReport');
 
     /* ===== DB ===== */
@@ -980,14 +986,17 @@
     }
 
     /* ===== LOG ===== */
-    const LOG_KEY="ids_foto_log_v33";
-    const REP_KEY="ids_rep_name_v33";
+    const LOG_KEY="ids_foto_log_v35";
+    const REP_KEY="ids_rep_name_v35";
+
+    // OK state persistence
+    const OK_STATE_KEY = "ids_ok_state_v35";
 
     function loadLog(){ try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); } catch { return []; } }
     function saveLog(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)); }
 
     function pruneLog(log){
-      const MAX = 400;
+      const MAX = 500;
       if(log.length > MAX) return log.slice(-MAX);
       return log;
     }
@@ -1010,12 +1019,11 @@
       saveLog(pruneLog(log));
     }
 
-    function isPhotoDoneToday(ap, type, codeOrBase){
+    function isPhotoDoneToday(ap, type, code){
       const day = repDate.value || isoDate(new Date());
       const log = loadLog().filter(x => x.day === day && String(x.ap||"") === ap);
-
       if(type==="exact"){
-        return log.some(x => normCode(x.photoCode) === normCode(codeOrBase));
+        return log.some(x => normCode(x.photoCode) === normCode(code));
       }
       return false;
     }
@@ -1044,6 +1052,30 @@
       if(t.needStand && t.standCode && !isPhotoDoneToday(t.ap,"exact",t.standCode)) n++;
       if(t.needB1 && t.b1Code && !isPhotoDoneToday(t.ap,"exact",t.b1Code)) n++;
       return n;
+    }
+
+    /* ===== OK STATE (persist) ===== */
+    function saveOkState(mode){
+      try{
+        if(!currentTasks) return;
+        const day = repDate.value || isoDate(new Date());
+        const state = {
+          v: APP_VERSION,
+          ts: new Date().toISOString(),
+          day,
+          ap: currentTasks.ap,
+          mode: mode || "ALL",
+          expressStatus: expressStatus || "NA"
+        };
+        localStorage.setItem(OK_STATE_KEY, JSON.stringify(state));
+      }catch(e){}
+    }
+    function clearOkState(){
+      try{ localStorage.removeItem(OK_STATE_KEY); }catch(e){}
+    }
+    function loadOkState(){
+      try{ return JSON.parse(localStorage.getItem(OK_STATE_KEY) || "null"); }
+      catch(e){ return null; }
     }
 
     /* ===== Thumbnail maker ===== */
@@ -1199,6 +1231,10 @@
 
       mainUi.style.display = "none";
       topOkBanner.style.display = "block";
+
+      // persist OK screen so it survives closing/reopening the page
+      saveOkState(mode);
+
       window.scrollTo({ top:0, behavior:"smooth" });
     }
 
@@ -1230,9 +1266,9 @@
     });
 
     /* ===== RENDER TASKS ===== */
-    function makeTaskRow({label, code, hint, done, onClick}){
+    function makeTaskRow({label, code, hint, done, extraClass, onClick}){
       const div = document.createElement("div");
-      div.className = "task" + (done ? " done" : "");
+      div.className = "task" + (done ? " done" : "") + (extraClass ? (" " + extraClass) : "");
 
       const left = document.createElement("div");
       left.className="left";
@@ -1381,6 +1417,20 @@
             openExpressArea();
             window.scrollTo({ top: document.body.scrollHeight, behavior:"smooth" });
           }
+        }));
+      }
+
+      /* NEW: Digital panel (DP) – nenápadná sivá bublinka pod express */
+      const dpCode = (t.ap ? (t.ap + "DP") : "");
+      if(dpCode){
+        const dpDone = isPhotoDoneToday(t.ap, "exact", dpCode);
+        taskList.appendChild(makeTaskRow({
+          label:"Fotím digitálny panel",
+          code:dpCode,
+          hint:"Voliteľné",
+          done: dpDone,
+          extraClass:"dpTask",
+          onClick: ()=> triggerCameraForCode(dpCode)
         }));
       }
 
@@ -1579,14 +1629,14 @@
       resetToNew();
     });
 
-    /* ===== Session UI hiding ===== */
+    /* ===== Session UI ===== */
     function setSessionUI(on){
       apWrap.style.display = on ? "none" : "block";
-      tinyReportWrap.style.display = on ? "block" : "none";
-      if(!on) panelReport.style.display = "none";
     }
 
     function resetToNew(){
+      clearOkState();
+
       saveOverlay.style.display="none";
       topOkBanner.style.display="none";
       mainUi.style.display="block";
@@ -1623,6 +1673,8 @@
 
     /* ===== LOAD AP ===== */
     function startSessionForAP(ap){
+      clearOkState(); // nový session = zruš starú hotovú obrazovku
+
       const apC = cleanCodeInput(ap);
       apInput.value = apC;
 
@@ -1738,9 +1790,7 @@
             return true;
           }
         }
-      }catch(e){
-        // ticho – fallback na stiahnutie
-      }
+      }catch(e){}
       downloadNow(blob, filename);
       return false;
     }
@@ -1866,7 +1916,7 @@
       }
     });
 
-    btnShareHtml.addEventListener("click", shareHtmlReport); // NEW
+    btnShareHtml.addEventListener("click", shareHtmlReport);
     btnExportCsv.addEventListener("click", exportCsv);
 
     btnDeleteDay.addEventListener("click", ()=>{
@@ -1882,7 +1932,8 @@
       if(reportWrap.style.display === "block") renderReport();
     });
 
-    btnTinyReport.addEventListener("click", ()=>{
+    // NEW: report button on intro page
+    btnHomeReport.addEventListener("click", ()=>{
       panelReport.style.display = (panelReport.style.display==="block") ? "none" : "block";
       if(panelReport.style.display==="block"){
         window.scrollTo({ top: document.body.scrollHeight, behavior:"smooth" });
@@ -1956,6 +2007,39 @@
       panelScan.style.display="none";
     });
 
+    /* ===== Restore OK screen after reopen ===== */
+    async function restoreOkIfAny(){
+      const st = loadOkState();
+      if(!st) return;
+
+      const today = repDate.value || isoDate(new Date());
+      if(st.day !== today){ clearOkState(); return; }
+
+      // wait for DB a bit so suggestions can render
+      let tries = 0;
+      while((!idx || !idx.byAP) && tries < 40){
+        await new Promise(r=>setTimeout(r, 100));
+        tries++;
+      }
+
+      const ap = cleanCodeInput(st.ap || "");
+      if(ap && idx && idx.byAP && idx.byAP.has(ap)){
+        currentTasks = computeTasks(ap);
+        if(currentTasks){
+          expressStatus = st.expressStatus || "NA";
+          expressSuggested = currentTasks.suggestedExpress || [];
+          renderMiniInfo(currentTasks.row);
+          renderTasks();
+
+          // keep session UI hidden (we are on OK screen anyway)
+          setRefreshLock(true);
+          setSessionUI(true);
+        }
+      }
+
+      showOkBanner(st.mode || "ALL");
+    }
+
     /* ===== Init ===== */
     repDate.value = (new Date()).toISOString().slice(0,10);
     repName.value = localStorage.getItem(REP_KEY) || "";
@@ -1965,6 +2049,7 @@
 
     loadDbXlsx();
     apInput.focus();
+    restoreOkIfAny();
   </script>
 </body>
 </html>
