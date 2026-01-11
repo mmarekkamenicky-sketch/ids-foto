@@ -25,7 +25,7 @@
       --ids-green:#118a3c;
       --ids-greenBg:#ecf8f0;
 
-      /* “originál červená” (bez cyklámen) */
+      /* originál červená */
       --ids-red:#c4001a;
 
       --bg:#ffffff;
@@ -130,7 +130,6 @@
     .sp{height:10px}
     .sp2{height:14px}
 
-    /* AP panel */
     .apInput{
       font-size:18px !important;
       padding:14px 14px !important;
@@ -267,32 +266,7 @@
     }
     .task.done .hint{ background:rgba(255,255,255,.55); color:var(--ids-green); }
 
-    .suffixWrap{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-      justify-content:flex-start;
-      margin-top:8px;
-    }
-    .suffixBtn{
-      border:none;
-      background:#fff;
-      padding:12px 16px;
-      font-weight:900;
-      min-width:64px;
-      text-align:center;
-      cursor:pointer;
-      user-select:none;
-      border-radius:var(--r);
-      color:var(--ids-navy);
-    }
-    .suffixBtn.active{
-      box-shadow: 0 0 0 2px rgba(11,42,91,.10) inset;
-      background:rgba(255,255,255,.92);
-    }
-
-    /* Express area */
+    /* Express */
     #expressAreaWrap{ display:none; }
     .subcard{
       border:none;
@@ -386,7 +360,7 @@
       border-radius:999px;
     }
 
-    /* === FULLSCREEN SAVE WARNING === */
+    /* FULLSCREEN SAVE WARNING */
     #saveOverlay{
       display:none;
       position:fixed;
@@ -491,7 +465,7 @@
 
     <div class="sp2"></div>
 
-    <!-- Manual / scan result + camera -->
+    <!-- Manual / scan + camera -->
     <div id="topToolsWrap" class="card">
       <div class="row">
         <input id="manualCode" placeholder="Kód fotky (napr. 6675 alebo 6675B)" autocomplete="off" autocapitalize="characters" />
@@ -605,9 +579,9 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <script>
-    const APP_VERSION = "V30-RED+SAVEALARM+SUFFIX";
+    const APP_VERSION = "V31-STATIC-4TASKS-MANUALFINISH";
 
-    /* ===== Service Worker register ===== */
+    /* ===== SW ===== */
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", async () => {
         try { await navigator.serviceWorker.register("./sw.js"); } catch (e) {}
@@ -646,23 +620,13 @@
       return String(ts||"").split("T")[1]?.slice(0,8) || "";
     }
 
-    /* ===== Clean input ===== */
     function cleanCodeInput(v){
       let s = String(v ?? "");
       s = s.replace(/\u00A0/g, " ");
       s = s.replace(/\s+/g, "");
       s = s.replace(/[‐-–—]/g, "-");
       s = s.toUpperCase();
-      // necháme čísla aj písmená (kvôli 6675B)
       return s;
-    }
-    // len pre suffix tlačidlá “A/B/C” pri statickom:
-    function ensureSuffix(base, suffix){
-      const b = cleanCodeInput(base);
-      const s = String(suffix||"").toUpperCase();
-      if(!b) return "";
-      if(/[A-Z]$/.test(b)) return b.replace(/[A-Z]$/, s);
-      return b + s;
     }
 
     function downloadNow(blob, filename){
@@ -675,12 +639,14 @@
       a.remove();
       setTimeout(()=>URL.revokeObjectURL(url), 4000);
     }
+
     function rowHasAnyText(row, fromIdx, toIdx){
       for(let i=fromIdx;i<=toIdx;i++){
         if(norm(row[i]) !== "") return true;
       }
       return false;
     }
+
     function joinCells(row, fromCol, toCol){
       const from = colToIndex(fromCol);
       const to = colToIndex(toCol);
@@ -691,6 +657,7 @@
       }
       return parts.join("\n");
     }
+
     function parseEXTokens(s){
       const t = normCode(s).replace(/[,\.;\/\\]+/g, " ");
       const parts = t.split(/\s+/).filter(Boolean);
@@ -701,6 +668,7 @@
       }
       return Array.from(new Set(out));
     }
+
     function readExpressPicked(){
       const picked=[];
       for(let i=1;i<=9;i++){
@@ -900,7 +868,7 @@
       noteCard.style.display="block";
     }
 
-    /* ===== TASKS STATE ===== */
+    /* ===== STATE ===== */
     let currentTasks=null;
     let currentPhotoCode="";
     let lastBlob=null;
@@ -921,7 +889,10 @@
 
       const standCode = norm(row[IDX_STAND_CODE]);
       const b1Code = norm(row[IDX_B1_CODE]);
-      const staticBase = norm(row[IDX_STATIC_CODE]);
+
+      // base kód pre statický (bez písmena)
+      let staticBase = norm(row[IDX_STATIC_CODE]);
+      staticBase = staticBase.replace(/[A-Z]$/i, "");
 
       const needExpress = norm(row[IDX_EXPRESS]) !== "";
       const suggestedExpress = parseEXTokens(row[IDX_EXPRESS]);
@@ -934,14 +905,13 @@
         needStand, needB1, needStatic,
         standCode, b1Code, staticBase,
         needExpress, suggestedExpress,
-        standHint, b1Hint,
-        _suffix:"A"
+        standHint, b1Hint
       };
     }
 
     /* ===== LOG ===== */
-    const LOG_KEY="ids_foto_log_v30";
-    const REP_KEY="ids_rep_name_v30";
+    const LOG_KEY="ids_foto_log_v31";
+    const REP_KEY="ids_rep_name_v31";
 
     function loadLog(){ try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); } catch { return []; } }
     function saveLog(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)); }
@@ -970,20 +940,24 @@
       if(type==="exact"){
         return log.some(x => normCode(x.photoCode) === normCode(codeOrBase));
       }
-      if(type==="base"){
-        const base = normCode(codeOrBase);
-        return log.some(x => normCode((x.photoCode||"").replace(/[A-Z]$/,"")) === base);
-      }
       return false;
     }
 
+    // ✅ statické ako 4 presné fotky: base / A / B / C
+    function isStaticDone(ap, staticBase, suffix){
+      const base = normCode(staticBase);
+      if(!base) return false;
+      const code = suffix ? (base + suffix) : base;
+      return isPhotoDoneToday(ap, "exact", code);
+    }
+
+    // ✅ povinné len stojan + B1
     function photosDone(){
       const t=currentTasks;
       if(!t) return false;
 
       if(t.needStand && t.standCode && !isPhotoDoneToday(t.ap,"exact",t.standCode)) return false;
       if(t.needB1 && t.b1Code && !isPhotoDoneToday(t.ap,"exact",t.b1Code)) return false;
-      if(t.needStatic && t.staticBase && !isPhotoDoneToday(t.ap,"base",t.staticBase)) return false;
 
       return true;
     }
@@ -994,13 +968,12 @@
       let n=0;
       if(t.needStand && t.standCode && !isPhotoDoneToday(t.ap,"exact",t.standCode)) n++;
       if(t.needB1 && t.b1Code && !isPhotoDoneToday(t.ap,"exact",t.b1Code)) n++;
-      if(t.needStatic && t.staticBase && !isPhotoDoneToday(t.ap,"base",t.staticBase)) n++;
       return n;
     }
 
     /* ===== NAV suggestions ===== */
     function labelForAP(ap){
-      if(!idx || !idx.byAP.has(ap)) return ap;
+      if(!idx || !idx.byAP.has(ap)) return { who:"—", addr:"—" };
       const r = idx.byAP.get(ap);
       const ph = norm(r[IDX_PHARMACY]);
       const nm = [norm(r[IDX_NAME]), norm(r[IDX_SURNAME])].filter(Boolean).join(" ").trim();
@@ -1016,8 +989,8 @@
 
       if(t.needStand && t.standCode && !isPhotoDoneToday(ap,"exact",t.standCode)) return false;
       if(t.needB1 && t.b1Code && !isPhotoDoneToday(ap,"exact",t.b1Code)) return false;
-      if(t.needStatic && t.staticBase && !isPhotoDoneToday(ap,"base",t.staticBase)) return false;
 
+      // statické sú voliteľné – neblokujú “hotovo” pri navigácii
       return true;
     }
 
@@ -1066,7 +1039,7 @@
       okNextWrap.style.display = "block";
     }
 
-    /* ===== OK banner logic ===== */
+    /* ===== OK banner ===== */
     function showOkBanner(mode){
       if(!currentTasks) return;
 
@@ -1096,8 +1069,11 @@
       window.scrollTo({ top:0, behavior:"smooth" });
     }
 
+    // ✅ AUTO OK: nikdy, keď existuje statický (manual rozhodnutie)
     function checkAutoOk(){
       if(!currentTasks) return;
+      if(currentTasks.needStatic) return;  // <- toto je celé kúzlo
+
       if(!photosDone()) return;
 
       if(currentTasks.needExpress && expressStatus === "NA"){
@@ -1146,56 +1122,6 @@
       return div;
     }
 
-    function makeStaticRow(t, done){
-      const div = document.createElement("div");
-      div.className = "task" + (done ? " done" : "");
-
-      const left = document.createElement("div");
-      left.className="left";
-
-      const title = document.createElement("div");
-      title.className="title";
-      title.textContent="Fotím statický plagát";
-
-      const codeEl = document.createElement("div");
-      codeEl.className="code";
-      codeEl.textContent=t.staticBase || "—";
-
-      const suffixWrap = document.createElement("div");
-      suffixWrap.className="suffixWrap";
-
-      ["A","B","C"].forEach(s=>{
-        const b=document.createElement("div");
-        b.className="suffixBtn" + (t._suffix===s ? " active":"");
-        b.textContent=s;
-        b.addEventListener("click",(ev)=>{
-          ev.stopPropagation();
-          t._suffix = s;
-          renderTasks();
-
-          const base=t.staticBase||"";
-          if(!base) return;
-
-          // ✅ fix: nastaví 6675B (nie len 6675)
-          triggerCameraForCode(ensureSuffix(base, s));
-        });
-        suffixWrap.appendChild(b);
-      });
-
-      left.appendChild(title);
-      left.appendChild(codeEl);
-      left.appendChild(suffixWrap);
-      div.appendChild(left);
-
-      div.addEventListener("click", ()=>{
-        const base=t.staticBase||"";
-        if(!base) return;
-        triggerCameraForCode(base);
-      });
-
-      return div;
-    }
-
     function renderExpressUI(){
       exGrid.innerHTML = "";
       const suggested = expressSuggested || [];
@@ -1237,10 +1163,10 @@
       remainBar.style.display="block";
       if(n===0){
         remainBar.classList.add("done");
-        remainBar.textContent = "HOTOVO ✓";
+        remainBar.textContent = "HOTOVO ✓ (stojan + B1)";
       }else{
         remainBar.classList.remove("done");
-        remainBar.textContent = "ZOSTÁVA: " + n;
+        remainBar.textContent = "ZOSTÁVA (stojan + B1): " + n;
       }
     }
 
@@ -1273,9 +1199,26 @@
         }));
       }
 
+      // ✅ statické = 4 samostatné bublinky (voliteľné)
       if(t.needStatic && t.staticBase){
-        const done = isPhotoDoneToday(t.ap,"base",t.staticBase);
-        taskList.appendChild(makeStaticRow(t, done));
+        const base = normCode(t.staticBase);
+
+        const mk = (suffix, label) => {
+          const done = isStaticDone(t.ap, base, suffix);
+          const code = suffix ? (base + suffix) : base;
+          taskList.appendChild(makeTaskRow({
+            label,
+            code,
+            hint:"Klikni a odfoť (voliteľné)",
+            done,
+            onClick: ()=> triggerCameraForCode(code)
+          }));
+        };
+
+        mk("",  "Statický plagát");
+        mk("A", "Statický plagát A");
+        mk("B", "Statický plagát B");
+        mk("C", "Statický plagát C");
       }
 
       if(t.needExpress){
@@ -1312,7 +1255,6 @@
       btnCamera.className = ok ? "btn red" : "btn gray";
     }
 
-    // ✅ otvor foto v tom istom kliknutí
     function triggerCameraForCode(code){
       const c = cleanCodeInput(code);
       manualCode.value = c;
@@ -1333,7 +1275,6 @@
     }
 
     function showSaveOverlay(){
-      // full-screen alarm, nič iné neruší
       mainUi.style.display = "none";
       topOkBanner.style.display = "none";
       saveOverlay.style.display = "block";
@@ -1413,10 +1354,8 @@
     btnSaveOverlay.addEventListener("click", doSavePhoto);
 
     btnCancelOverlay.addEventListener("click", ()=>{
-      // ukončiť = zavri alarm, fotku zahodíme (nezaznamenáme)
       lastBlob = null;
       hideSaveOverlay();
-      // nech je to bezpečné: vráť používateľa späť k úlohám
       if(currentTasks){
         tasksCard.style.display="block";
         renderTasks();
@@ -1461,20 +1400,26 @@
       const t=currentTasks;
       const miss=[];
       if(!t) return miss;
+
+      // ✅ povinné len stojan + B1
       if(t.needStand && t.standCode && !isPhotoDoneToday(t.ap,"exact",t.standCode)) miss.push("stojan");
       if(t.needB1 && t.b1Code && !isPhotoDoneToday(t.ap,"exact",t.b1Code)) miss.push("B1");
-      if(t.needStatic && t.staticBase && !isPhotoDoneToday(t.ap,"base",t.staticBase)) miss.push("statický");
+
+      // statické sú voliteľné – nikdy ich nedávame ako “chýba”
       return miss;
     }
 
     btnFinish.addEventListener("click", ()=>{
       if(!currentTasks) return;
       const miss = missingListForPhotosOnly();
+
       if(miss.length===0){
+        // ✅ hotovo vždy až cez Ukončiť (statické môže byť nedofotené)
         if(currentTasks.needExpress && expressStatus==="NA"){ showOkBanner("PHOTOS_ONLY"); return; }
         showOkBanner("ALL");
         return;
       }
+
       finishText.textContent = "Chýba: " + miss.join(", ");
       dlgFinish.showModal();
     });
