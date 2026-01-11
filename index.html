@@ -25,7 +25,8 @@
       --ids-green:#118a3c;
       --ids-greenBg:#ecf8f0;
 
-      --ids-red:#b00020;
+      /* “originál červená” (bez cyklámen) */
+      --ids-red:#c4001a;
 
       --bg:#ffffff;
       --text:var(--ids-navy);
@@ -108,7 +109,7 @@
       padding:16px 16px;
     }
     .btn.red{
-      background:var(--ids-cycla);
+      background:var(--ids-red);
       color:#fff;
       font-size:18px;
       padding:16px 16px;
@@ -217,7 +218,7 @@
     }
     #remainBar.done{ background: var(--ids-green); }
 
-    /* Úlohy výrazne červené */
+    /* Úlohy výrazne ČERVENÉ + biele písmo (nedokončené) */
     .task{
       border:none;
       padding:16px;
@@ -227,7 +228,7 @@
       gap:10px;
       user-select:none;
       cursor:pointer;
-      background: var(--ids-cycla);
+      background: var(--ids-red);
       color:#fff;
       border-radius:var(--r);
     }
@@ -290,10 +291,6 @@
       box-shadow: 0 0 0 2px rgba(11,42,91,.10) inset;
       background:rgba(255,255,255,.92);
     }
-
-    /* After photo */
-    #afterPhoto{ display:none; }
-    .bigSave{ width:100%; font-size:20px; padding:18px 16px; }
 
     /* Express area */
     #expressAreaWrap{ display:none; }
@@ -388,10 +385,80 @@
       padding:6px 10px;
       border-radius:999px;
     }
+
+    /* === FULLSCREEN SAVE WARNING === */
+    #saveOverlay{
+      display:none;
+      position:fixed;
+      inset:0;
+      z-index:9999;
+      background:var(--ids-red);
+      color:#fff;
+      padding:18px;
+      border-radius:0;
+    }
+    .saveBox{
+      height:100%;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      gap:14px;
+      text-align:center;
+      border-radius:0;
+    }
+    .warnIcon{
+      width:74px;height:74px;
+      display:flex;align-items:center;justify-content:center;
+      border:4px solid rgba(255,255,255,.95);
+      border-radius:999px;
+      font-size:42px;
+      font-weight:900;
+      line-height:1;
+    }
+    .warnTitle{
+      font-size:22px;
+      font-weight:900;
+      line-height:1.15;
+      max-width:520px;
+    }
+    .warnSub{
+      font-size:13px;
+      font-weight:800;
+      opacity:.92;
+      max-width:520px;
+    }
+    .whiteBtn{
+      width:100%;
+      max-width:380px;
+      border:0;
+      padding:16px 16px;
+      font-weight:900;
+      font-size:18px;
+      cursor:pointer;
+      background:#fff;
+      color:var(--ids-red);
+      border-radius:var(--r);
+    }
+    .whiteBtn.secondary{
+      background:rgba(255,255,255,.92);
+      color:var(--ids-navy);
+    }
   </style>
 </head>
 
 <body>
+
+  <!-- FULLSCREEN SAVE WARNING -->
+  <div id="saveOverlay">
+    <div class="saveBox">
+      <div class="warnIcon">!</div>
+      <div class="warnTitle">Fotografia nebola uložená</div>
+      <div class="warnSub">Vrátil si sa z fotoaparátu. Aby sa fotka naozaj uložila, klikni <b>Uložiť</b>.</div>
+      <button id="btnSaveOverlay" class="whiteBtn">Uložiť</button>
+      <button id="btnCancelOverlay" class="whiteBtn secondary">Ukončiť</button>
+    </div>
+  </div>
 
   <!-- TOP OK OVERLAY -->
   <div id="topOkBanner" class="card" style="padding:0;background:transparent;box-shadow:none">
@@ -427,7 +494,7 @@
     <!-- Manual / scan result + camera -->
     <div id="topToolsWrap" class="card">
       <div class="row">
-        <input id="manualCode" placeholder="Číslo fotky (napr. 5587)" autocomplete="off" inputmode="numeric" />
+        <input id="manualCode" placeholder="Kód fotky (napr. 6675 alebo 6675B)" autocomplete="off" autocapitalize="characters" />
         <button id="btnCamera" class="btn gray" style="min-width:110px">Foto</button>
       </div>
       <div class="sp"></div>
@@ -471,16 +538,6 @@
 
       <div class="sp2"></div>
       <button id="btnFinish" class="btn red" style="width:100%">Ukončiť</button>
-    </div>
-
-    <!-- AFTER PHOTO -->
-    <div id="afterPhoto" class="card">
-      <button id="btnSavePhoto" class="btn yellow bigSave">Uložiť</button>
-      <div class="sp"></div>
-      <div class="row">
-        <button id="btnRetake" class="btn gray" style="flex:1">Znova</button>
-        <button id="btnBack" class="btn gray" style="flex:1">Späť</button>
-      </div>
     </div>
 
     <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none" />
@@ -548,7 +605,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <script>
-    const APP_VERSION = "V29-FIXCAM+NAV";
+    const APP_VERSION = "V30-RED+SAVEALARM+SUFFIX";
 
     /* ===== Service Worker register ===== */
     if ("serviceWorker" in navigator) {
@@ -596,10 +653,16 @@
       s = s.replace(/\s+/g, "");
       s = s.replace(/[‐-–—]/g, "-");
       s = s.toUpperCase();
+      // necháme čísla aj písmená (kvôli 6675B)
       return s;
     }
-    function cleanNumeric(v){
-      return String(v ?? "").replace(/\D+/g,"");
+    // len pre suffix tlačidlá “A/B/C” pri statickom:
+    function ensureSuffix(base, suffix){
+      const b = cleanCodeInput(base);
+      const s = String(suffix||"").toUpperCase();
+      if(!b) return "";
+      if(/[A-Z]$/.test(b)) return b.replace(/[A-Z]$/, s);
+      return b + s;
     }
 
     function downloadNow(blob, filename){
@@ -649,6 +712,10 @@
     }
 
     /* ===== Elements ===== */
+    const saveOverlay = document.getElementById("saveOverlay");
+    const btnSaveOverlay = document.getElementById("btnSaveOverlay");
+    const btnCancelOverlay = document.getElementById("btnCancelOverlay");
+
     const topOkBanner = document.getElementById('topOkBanner');
     const mainUi = document.getElementById('mainUi');
     const okTitle = document.getElementById('okTitle');
@@ -684,10 +751,6 @@
     const btnExpressNot = document.getElementById('btnExpressNot');
     const btnExpressClose = document.getElementById('btnExpressClose');
 
-    const afterPhoto = document.getElementById('afterPhoto');
-    const btnSavePhoto = document.getElementById('btnSavePhoto');
-    const btnRetake = document.getElementById('btnRetake');
-    const btnBack = document.getElementById('btnBack');
     const photoInput = document.getElementById('photoInput');
 
     const video = document.getElementById('video');
@@ -877,8 +940,8 @@
     }
 
     /* ===== LOG ===== */
-    const LOG_KEY="ids_foto_log_v29";
-    const REP_KEY="ids_rep_name_v29";
+    const LOG_KEY="ids_foto_log_v30";
+    const REP_KEY="ids_rep_name_v30";
 
     function loadLog(){ try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); } catch { return []; } }
     function saveLog(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)); }
@@ -1112,7 +1175,9 @@
 
           const base=t.staticBase||"";
           if(!base) return;
-          triggerCameraForCode(base + s);  // ✅ FIX: otvor foto
+
+          // ✅ fix: nastaví 6675B (nie len 6675)
+          triggerCameraForCode(ensureSuffix(base, s));
         });
         suffixWrap.appendChild(b);
       });
@@ -1125,7 +1190,7 @@
       div.addEventListener("click", ()=>{
         const base=t.staticBase||"";
         if(!base) return;
-        triggerCameraForCode(base); // ✅ FIX: otvor foto
+        triggerCameraForCode(base);
       });
 
       return div;
@@ -1193,7 +1258,7 @@
           code:t.standCode,
           hint:t.standHint,
           done,
-          onClick: ()=> triggerCameraForCode(t.standCode) // ✅ FIX
+          onClick: ()=> triggerCameraForCode(t.standCode)
         }));
       }
 
@@ -1204,7 +1269,7 @@
           code:t.b1Code,
           hint:t.b1Hint,
           done,
-          onClick: ()=> triggerCameraForCode(t.b1Code) // ✅ FIX
+          onClick: ()=> triggerCameraForCode(t.b1Code)
         }));
       }
 
@@ -1230,7 +1295,7 @@
       checkAutoOk();
     }
 
-    /* ===== Refresh lock (jemná poistka) ===== */
+    /* ===== Refresh lock ===== */
     function setRefreshLock(on){
       sessionLocked = !!on;
     }
@@ -1243,11 +1308,11 @@
 
     /* ===== PHOTO FLOW ===== */
     function refreshCameraButton(){
-      const ok = cleanNumeric(manualCode.value).length > 0;
+      const ok = cleanCodeInput(manualCode.value).length > 0;
       btnCamera.className = ok ? "btn red" : "btn gray";
     }
 
-    // ✅ FIX: jednotná funkcia – nastaví kód, skryje klávesnicu a hneď otvorí fotoaparát
+    // ✅ otvor foto v tom istom kliknutí
     function triggerCameraForCode(code){
       const c = cleanCodeInput(code);
       manualCode.value = c;
@@ -1255,26 +1320,35 @@
       refreshCameraButton();
       currentPhotoCode = c;
 
-      // schovaj klávesnicu
       if(document.activeElement) document.activeElement.blur();
       manualCode.blur();
 
-      openCamera(); // musí byť v tom istom kliknutí
+      openCamera();
     }
 
     function openCamera(){
       if(!manualCode.value.trim()) return;
       photoInput.value="";
-      // dôležité: click musí byť priamo z user gesture (tu je)
       photoInput.click();
+    }
+
+    function showSaveOverlay(){
+      // full-screen alarm, nič iné neruší
+      mainUi.style.display = "none";
+      topOkBanner.style.display = "none";
+      saveOverlay.style.display = "block";
+      window.scrollTo({ top:0, behavior:"instant" });
+    }
+    function hideSaveOverlay(){
+      saveOverlay.style.display = "none";
+      mainUi.style.display = "block";
     }
 
     function showSaveIfFileReturned(){
       const f = photoInput.files && photoInput.files[0];
       if(f){
         lastBlob = f;
-        afterPhoto.style.display = "block";
-        tasksCard.style.display = "none";
+        showSaveOverlay();
         return true;
       }
       return false;
@@ -1288,10 +1362,7 @@
 
         setTimeout(() => {
           if (showSaveIfFileReturned()) return;
-
           lastBlob = null;
-          afterPhoto.style.display = "none";
-          tasksCard.style.display = currentTasks ? "block" : "none";
         }, 500);
       }, 200);
     });
@@ -1305,10 +1376,11 @@
       }
     });
 
-    btnSavePhoto.addEventListener('click', ()=>{
+    function doSavePhoto(){
       if(!lastBlob) return;
 
-      const code = cleanNumeric(manualCode.value);
+      const code = cleanCodeInput(manualCode.value);
+      manualCode.value = code;
       if(!code) return;
 
       const filename = safeName(code) + ".jpg";
@@ -1330,22 +1402,25 @@
       addLogEntry(ap, code, posters, note, filename);
 
       lastBlob=null;
-      afterPhoto.style.display="none";
-      tasksCard.style.display = currentTasks ? "block" : "none";
+      hideSaveOverlay();
 
-      if(currentTasks) renderTasks();
-    });
+      if(currentTasks){
+        tasksCard.style.display = "block";
+        renderTasks();
+      }
+    }
 
-    btnRetake.addEventListener("click", ()=>{
-      afterPhoto.style.display="none";
-      tasksCard.style.display = currentTasks ? "block" : "none";
-      lastBlob=null;
-      openCamera();
-    });
-    btnBack.addEventListener("click", ()=>{
-      afterPhoto.style.display="none";
-      tasksCard.style.display = currentTasks ? "block" : "none";
-      lastBlob=null;
+    btnSaveOverlay.addEventListener("click", doSavePhoto);
+
+    btnCancelOverlay.addEventListener("click", ()=>{
+      // ukončiť = zavri alarm, fotku zahodíme (nezaznamenáme)
+      lastBlob = null;
+      hideSaveOverlay();
+      // nech je to bezpečné: vráť používateľa späť k úlohám
+      if(currentTasks){
+        tasksCard.style.display="block";
+        renderTasks();
+      }
     });
 
     /* ===== EXPRESS ===== */
@@ -1412,22 +1487,17 @@
 
     /* ===== Session UI hiding ===== */
     function setSessionUI(on){
-      // po načítaní plochy skryj hore AP a nech neruší
       apWrap.style.display = on ? "none" : "block";
-
-      // tiny report nech je len keď beží session (úplne dole)
       tinyReportWrap.style.display = on ? "block" : "none";
-
-      // report panel skryté default
       if(!on) panelReport.style.display = "none";
     }
 
     function resetToNew(){
+      saveOverlay.style.display="none";
       topOkBanner.style.display="none";
       mainUi.style.display="block";
 
       tasksCard.style.display="none";
-      afterPhoto.style.display="none";
       taskList.innerHTML="";
       currentTasks=null;
       currentPhotoCode="";
@@ -1481,13 +1551,9 @@
       tasksCard.style.display="block";
       renderTasks();
 
-      // lock refresh počas práce
       setRefreshLock(true);
-
-      // UI minimalizácia
       setSessionUI(true);
 
-      // zavri klávesnicu po načítaní
       apInput.blur();
 
       window.scrollTo({ top:0, behavior:"smooth" });
@@ -1507,7 +1573,7 @@
 
     /* ===== manual code ===== */
     manualCode.addEventListener("input", ()=>{
-      const cleaned = cleanNumeric(manualCode.value);
+      const cleaned = cleanCodeInput(manualCode.value);
       if(manualCode.value !== cleaned) manualCode.value = cleaned;
       scanHint.style.display="none";
       refreshCameraButton();
@@ -1519,11 +1585,10 @@
     });
 
     btnCamera.addEventListener("click", ()=>{
-      const c = cleanNumeric(manualCode.value.trim());
+      const c = cleanCodeInput(manualCode.value.trim());
       manualCode.value = c;
       if(!c) return;
 
-      // schovaj klávesnicu a otvor foto
       if(document.activeElement) document.activeElement.blur();
       manualCode.blur();
 
@@ -1660,7 +1725,7 @@
             if(codes && codes.length){
               const raw = (codes[0].rawValue || "").trim();
               if(raw){
-                manualCode.value = cleanNumeric(raw);
+                manualCode.value = cleanCodeInput(raw);
                 scanHint.style.display = "block";
                 refreshCameraButton();
 
@@ -1670,7 +1735,6 @@
                 btnCamera.classList.add("pulse");
                 setTimeout(()=>btnCamera.classList.remove("pulse"), 1200);
 
-                // zavri klávesnicu
                 if(document.activeElement) document.activeElement.blur();
                 manualCode.blur();
 
