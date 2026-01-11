@@ -130,11 +130,13 @@
     .sp{height:10px}
     .sp2{height:14px}
 
+    /* === AP panel – OBROVSKÉ + centrované === */
     .apInput{
-      font-size:18px !important;
-      padding:14px 14px !important;
+      font-size:34px !important;
+      padding:22px 18px !important;
       font-weight:900 !important;
-      letter-spacing:.01em;
+      letter-spacing:.03em;
+      text-align:center;
     }
 
     /* TOP OK overlay */
@@ -497,7 +499,7 @@
       <button id="btnOkNext" class="btn green" style="width:100%;max-width:360px">Nové</button>
       <button id="btnOkExpress" class="btn gray" style="width:100%;max-width:360px; display:none">Express</button>
 
-      <!-- NEW: PROOF (thumbs) -->
+      <!-- PROOF (thumbs) -->
       <div id="okProofWrap">
         <div class="proofTitle">Uložené fotky (dnes / táto plocha)</div>
         <div id="okThumbGrid" class="thumbGrid"></div>
@@ -519,7 +521,8 @@
     <div id="apWrap" class="card">
       <div class="col">
         <input id="apInput" class="apInput" placeholder="Kód plochy" autocomplete="off" autocapitalize="characters" />
-        <button id="btnLoad" class="btn yellow">Načítať</button>
+        <!-- ZMENA: červené + Vyhľadať -->
+        <button id="btnLoad" class="btn red">Vyhľadať</button>
       </div>
     </div>
 
@@ -755,7 +758,6 @@
     const okNextWrap = document.getElementById('okNextWrap');
     const okNextGroup = document.getElementById('okNextGroup');
 
-    // NEW proof
     const okProofWrap = document.getElementById('okProofWrap');
     const okThumbGrid = document.getElementById('okThumbGrid');
 
@@ -940,7 +942,6 @@
     let expressSuggested=[];
     let sessionLocked=false;
 
-    // overlay iba keď čakáme na fotku
     let waitingForPhoto = false;
 
     function computeTasks(ap){
@@ -982,8 +983,7 @@
     function saveLog(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)); }
 
     function pruneLog(log){
-      // poistka proti nafúknutiu (thumby zaberajú miesto)
-      const MAX = 400; // cca bezpečné pre localStorage
+      const MAX = 400;
       if(log.length > MAX) return log.slice(-MAX);
       return log;
     }
@@ -999,7 +999,7 @@
         posters: posters || [],
         note: note || "",
         file: file || "",
-        thumb: thumb || ""   // NEW
+        thumb: thumb || ""
       };
       const log = loadLog();
       log.push(entry);
@@ -1042,12 +1042,11 @@
       return n;
     }
 
-    /* ===== Thumbnail maker (NEW) ===== */
+    /* ===== Thumbnail maker ===== */
     async function makeThumbFromBlob(blob){
       try{
-        // create bitmap
         const bmp = await createImageBitmap(blob);
-        const max = 220; // px
+        const max = 220;
         const w = bmp.width, h = bmp.height;
         const s = Math.min(1, max / Math.max(w, h));
         const tw = Math.max(1, Math.round(w * s));
@@ -1058,7 +1057,6 @@
         const x = c.getContext("2d");
         x.drawImage(bmp, 0, 0, tw, th);
 
-        // komprimuj
         const dataUrl = c.toDataURL("image/jpeg", 0.62);
         bmp.close && bmp.close();
         return dataUrl;
@@ -1134,7 +1132,6 @@
       okNextWrap.style.display = "block";
     }
 
-    /* ===== NEW: proof thumbnails on OK ===== */
     function renderOkProofThumbs(){
       okThumbGrid.innerHTML = "";
       okProofWrap.style.display = "none";
@@ -1146,7 +1143,7 @@
       const items = loadLog()
         .filter(x => x.day === day && String(x.ap||"") === ap && norm(x.photoCode) !== "")
         .sort((a,b)=> (a.ts||"").localeCompare(b.ts||""))
-        .slice(-12); // posledných 12
+        .slice(-12);
 
       if(!items.length) return;
 
@@ -1157,7 +1154,7 @@
         const img = document.createElement("img");
         img.className = "thumbImg";
         img.alt = it.photoCode || "";
-        img.src = it.thumb || ""; // ak nie je, bude len prázdne pozadie
+        img.src = it.thumb || "";
         wrap.appendChild(img);
 
         const code = document.createElement("div");
@@ -1307,6 +1304,18 @@
       }
     }
 
+    function triggerCameraForCode(code){
+      const c = cleanCodeInput(code);
+      manualCode.value = c;
+      scanHint.style.display = "none";
+      refreshCameraButton();
+
+      if(document.activeElement) document.activeElement.blur();
+      manualCode.blur();
+
+      openCamera();
+    }
+
     function renderTasks(){
       const t = currentTasks;
       taskList.innerHTML = "";
@@ -1391,18 +1400,6 @@
       btnCamera.className = ok ? "btn red" : "btn gray";
     }
 
-    function triggerCameraForCode(code){
-      const c = cleanCodeInput(code);
-      manualCode.value = c;
-      scanHint.style.display = "none";
-      refreshCameraButton();
-
-      if(document.activeElement) document.activeElement.blur();
-      manualCode.blur();
-
-      openCamera();
-    }
-
     function openCamera(){
       if(!manualCode.value.trim()) return;
 
@@ -1468,7 +1465,6 @@
       manualCode.value = code;
       if(!code) return;
 
-      // NEW: thumb
       const thumb = await makeThumbFromBlob(lastBlob);
 
       const filename = safeName(code) + ".jpg";
